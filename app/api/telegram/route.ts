@@ -3,6 +3,7 @@ import { createBot } from "@/lib/telegram/bot";
 import { registerHandlers } from "@/lib/telegram/handlers";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 300;
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const bot = createBot();

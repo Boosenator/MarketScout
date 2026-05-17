@@ -284,7 +284,10 @@ CRON_SECRET=               # для захисту cron endpoint
 Зроблено:
 - [x] Supabase migration застосована користувачем.
 - [x] Прод-домен Vercel: `https://market-scout-seven.vercel.app/`.
+- [x] Telegram webhook зареєстровано користувачем.
+- [x] Додано Telegram-команди для тестування фаз по конкретному ринку:
+  `/markets`, `/phase1 <market_id>`, `/phase2 <market_id>`, `/phase3 <market_id>`, `/testmarket <market_id>`.
 
 Потрібно для webhook:
-- [ ] Зареєструвати Telegram webhook на `https://market-scout-seven.vercel.app/api/telegram`.
-- [ ] Для реєстрації потрібен локальний доступ до `TELEGRAM_BOT_TOKEN` або залінкований Vercel project для `vercel env pull`.
+- [x] Зареєструвати Telegram webhook на `https://market-scout-seven.vercel.app/api/telegram`.
+- [x] Для реєстрації потрібен локальний доступ до `TELEGRAM_BOT_TOKEN` або залінкований Vercel project для `vercel env pull`.

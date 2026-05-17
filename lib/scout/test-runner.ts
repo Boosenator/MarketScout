@@ -1,4 +1,4 @@
-import { getEnv } from "@/lib/config";
+import { getAnthropicEnv } from "@/lib/config";
 import { getMarketName, markets } from "@/lib/scout/markets";
 import { scoutMarketSignals } from "@/lib/scout/phase1-search";
 import { generateIdeas } from "@/lib/scout/phase2-generate";
@@ -43,7 +43,7 @@ export function marketListText(): string {
 }
 
 export async function runPhase1Test(marketId: string): Promise<Phase1TestResult> {
-  const env = getEnv();
+  const env = getAnthropicEnv();
   const market = requireMarket(marketId);
   const db = createSupabaseAdmin();
   const session = await createScoutSession(db);
@@ -64,7 +64,7 @@ export async function runPhase1Test(marketId: string): Promise<Phase1TestResult>
 }
 
 export async function runPhase2Test(marketId: string): Promise<Phase2TestResult> {
-  const env = getEnv();
+  const env = getAnthropicEnv();
   const market = requireMarket(marketId);
   const db = createSupabaseAdmin();
   const session = await createScoutSession(db);
@@ -95,7 +95,7 @@ export async function runPhase2Test(marketId: string): Promise<Phase2TestResult>
 
 export async function runPhase3Test(marketId: string): Promise<Phase3TestResult> {
   const phase2 = await runPhase2Test(marketId);
-  const env = getEnv();
+  const env = getAnthropicEnv();
   const db = createSupabaseAdmin();
   const selectedIdea = phase2.savedIdeas
     .filter((idea) => idea.killed_at_pass === null && (idea.total_score ?? 0) >= 65)

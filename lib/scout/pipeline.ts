@@ -1,4 +1,4 @@
-import { getEnv } from "@/lib/config";
+import { getAnthropicEnv } from "@/lib/config";
 import { markets } from "@/lib/scout/markets";
 import { scoutMarketSignals } from "@/lib/scout/phase1-search";
 import { generateIdeas } from "@/lib/scout/phase2-generate";
@@ -20,7 +20,7 @@ import { postDigest, postIdea } from "@/lib/telegram/post-idea";
 const phaseDelayMs = 500;
 
 export async function runScoutPipeline(): Promise<PipelineSummary> {
-  const env = getEnv();
+  const env = getAnthropicEnv();
   const db = createSupabaseAdmin();
   const session = await createScoutSession(db);
 

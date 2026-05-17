@@ -1,12 +1,12 @@
 import { Markup, type Telegram, type Telegraf } from "telegraf";
-import { getEnv } from "@/lib/config";
+import { getTelegramEnv } from "@/lib/config";
 import { getMarketName } from "@/lib/scout/markets";
 import type { IdeaRecord, PipelineSummary } from "@/lib/scout/types";
 
 type VoteCounts = Record<"fire" | "maybe" | "skip", number>;
 
 export async function postDigest(bot: Telegraf, summary: PipelineSummary): Promise<void> {
-  const env = getEnv();
+  const env = getTelegramEnv();
   await bot.telegram.sendMessage(
     env.TELEGRAM_CHAT_ID,
     [
@@ -22,7 +22,7 @@ export async function postDigest(bot: Telegraf, summary: PipelineSummary): Promi
 }
 
 export async function postIdea(bot: Telegraf, idea: IdeaRecord): Promise<number> {
-  const env = getEnv();
+  const env = getTelegramEnv();
   const message = await bot.telegram.sendMessage(env.TELEGRAM_CHAT_ID, formatIdeaPost(idea), {
     parse_mode: "Markdown",
     reply_markup: voteKeyboard(idea.id, { fire: 0, maybe: 0, skip: 0 }).reply_markup

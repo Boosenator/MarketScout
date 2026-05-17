@@ -155,3 +155,54 @@ export async function getIdea(db: Db, ideaId: string): Promise<IdeaRecord | null
 
   return data as IdeaRecord | null;
 }
+
+export async function claimTelegramUpdate(
+  db: Db,
+  updateId: number,
+  updateKind: "message" | "callback_query"
+): Promise<boolean> {
+  const { error } = await db.from("telegram_update_runs").insert({
+    telegram_update_id: updateId,
+    update_kind: updateKind,
+    status: "running"
+  });
+
+  if (!error) {
+    return true;
+  }
+
+  if (error.code === "23505") {
+    return false;
+  }
+
+  if (error.code === "42P01") {
+    console.warn("telegram_update_runs table is missing; skipping Telegram update dedupe until migration 002 is applied.");
+    return true;
+  }
+
+  throw error;
+}
+
+export async function finishTelegramUpdate(
+  db: Db,
+  updateId: number,
+  status: "done" | "failed",
+  errorMessage?: string
+): Promise<void> {
+  const { error } = await db
+    .from("telegram_update_runs")
+    .update({
+      status,
+      error_message: errorMessage ?? null,
+      finished_at: new Date().toISOString()
+    })
+    .eq("telegram_update_id", updateId);
+
+  if (error?.code === "42P01") {
+    return;
+  }
+
+  if (error) {
+    throw error;
+  }
+}

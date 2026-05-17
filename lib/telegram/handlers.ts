@@ -8,7 +8,13 @@ import {
   summarizePhase3
 } from "@/lib/scout/test-runner";
 import { createSupabaseAdmin } from "@/lib/supabase/client";
-import { getIdea, getVoteCounts, upsertVote } from "@/lib/supabase/queries";
+import {
+  claimTelegramUpdate,
+  finishTelegramUpdate,
+  getIdea,
+  getVoteCounts,
+  upsertVote
+} from "@/lib/supabase/queries";
 import { createTelegramClient, type TelegramClient } from "./client";
 import { updateIdeaKeyboard } from "./post-idea";
 
@@ -38,21 +44,55 @@ interface TelegramCallbackQuery {
 }
 
 export interface TelegramUpdate {
+  update_id?: number;
   message?: TelegramIncomingMessage;
   callback_query?: TelegramCallbackQuery;
 }
 
 export async function handleTelegramUpdate(update: TelegramUpdate): Promise<void> {
+  const db = createSupabaseAdmin();
+  const updateKind = update.message ? "message" : update.callback_query ? "callback_query" : null;
+
+  if (update.update_id !== undefined && updateKind) {
+    const claimed = await claimTelegramUpdate(db, update.update_id, updateKind);
+
+    if (!claimed) {
+      console.log(`Skipping duplicate Telegram update ${update.update_id}`);
+      return;
+    }
+  }
+
   const telegram = createTelegramClient();
 
-  if (update.callback_query) {
-    await handleVote(telegram, update.callback_query);
+  try {
+    if (update.callback_query) {
+      await handleVote(telegram, update.callback_query);
+      await markUpdateFinished(db, update, "done");
+      return;
+    }
+
+    if (update.message?.text) {
+      await handleCommand(telegram, update.message);
+    }
+
+    await markUpdateFinished(db, update, "done");
+  } catch (error) {
+    await markUpdateFinished(db, update, "failed", error instanceof Error ? error.message : "Unknown error");
+    throw error;
+  }
+}
+
+async function markUpdateFinished(
+  db: ReturnType<typeof createSupabaseAdmin>,
+  update: TelegramUpdate,
+  status: "done" | "failed",
+  errorMessage?: string
+): Promise<void> {
+  if (update.update_id === undefined) {
     return;
   }
 
-  if (update.message?.text) {
-    await handleCommand(telegram, update.message);
-  }
+  await finishTelegramUpdate(db, update.update_id, status, errorMessage);
 }
 
 async function handleCommand(telegram: TelegramClient, message: TelegramIncomingMessage): Promise<void> {

@@ -12,18 +12,28 @@ export async function deepDiveIdea(apiKey: string, idea: ScoredIdea): Promise<De
     apiKey,
     model,
     system:
-      "You are a pragmatic venture analyst. Produce a concrete deep dive with competitors, entry paths, risks, and a first validation step. Write all human-facing fields in Russian. team_fit_score must be an integer from 0 to 10, not a percentage.",
+      "You are a pragmatic venture analyst. Use web search to verify analogues, competitors, risks, and current market context before writing. Do not invent company traction or revenue. If exact revenue is unavailable, say what is observable instead. Produce a concrete deep dive with entry paths, risks, and a first validation step. Write all human-facing fields in Russian. team_fit_score must be an integer from 0 to 10, not a percentage.",
     messages: [
       {
         role: "user",
-        content: `Deep dive this idea:\n${JSON.stringify(
+        content: `Deep dive this idea using fresh web research.
+
+Requirements:
+- analogues must be real companies/products/creators/marketplaces found or verified online.
+- include what each analogue proves: demand, pricing, channel, positioning, or distribution.
+- first_validation_step must be executable in 7-14 days without building full tech.
+- main_risks must include one market/channel/regulatory risk if relevant.
+
+Idea:
+${JSON.stringify(
           idea,
           null,
           2
         )}\n\nSchema: {"deep_dive":{"analogues":["..."],"entry_bootstrap":"...","entry_vc":"...","entry_lifestyle":"...","main_risks":["..."],"risk_mitigations":["..."],"first_validation_step":"...","team_fit_score":7}}`
       }
     ],
-    maxTokens: 2500
+    maxTokens: 4500,
+    tools: [{ type: "web_search_20250305", name: "web_search" }]
   });
 
   return {

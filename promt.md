@@ -291,3 +291,9 @@ CRON_SECRET=               # для захисту cron endpoint
 Потрібно для webhook:
 - [x] Зареєструвати Telegram webhook на `https://market-scout-seven.vercel.app/api/telegram`.
 - [x] Для реєстрації потрібен локальний доступ до `TELEGRAM_BOT_TOKEN` або залінкований Vercel project для `vercel env pull`.
+## Статус 2026-05-17 / web-grounded ideas
+
+Зроблено:
+- [x] Phase 2 generate тепер використовує web search перед генерацією ідей.
+- [x] Phase 3 deep dive тепер використовує web search для перевірки аналогів, ризиків і поточного контексту.
+- [x] Промпти уточнені: не вигадувати traction/revenue/аналоги, а спиратися на реальні web-сигнали.

@@ -22,11 +22,11 @@ export async function scoutMarketSignals(apiKey: string, market: Market): Promis
         content: `Scan these search angles and extract 10-15 concise signals for target geography: ${targetRegionText}. Exclude ${excludedRegionText} completely.\n${prompts}\n\nSchema: {"signals":[{"title":"...","source":"...","relevance_note":"..."}]}`
       }
     ],
-    maxTokens: 2500,
+    maxTokens: 2200,
     tools: [{ type: "web_search_20250305", name: "web_search" }]
   });
 
-  return result.signals.slice(0, 15).map((signal) => ({
+  return result.signals.slice(0, 10).map((signal) => ({
     ...signal,
     market_id: market.id
   }));

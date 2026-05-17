@@ -9,6 +9,11 @@ interface IdeaResponse {
 }
 
 export async function generateIdeas(apiKey: string, market: Market, signals: Signal[]): Promise<RawIdea[]> {
+  const compactSignals = signals.slice(0, 8).map((signal) => ({
+    title: clip(signal.title, 120),
+    source: clip(signal.source, 80),
+    relevance_note: clip(signal.relevance_note, 180)
+  }));
   const result = await completeJson<IdeaResponse>({
     apiKey,
     model,
@@ -29,13 +34,13 @@ Workflow:
 
 Signals:
 ${JSON.stringify(
-          signals,
+          compactSignals,
           null,
           2
         )}\n\nSchema: {"ideas":[{"market_id":"...","title":"...","description":"2 sentences","target_audience":"...","monetization":"...","why_now":"...","signals_used":["..."]}]}`
       }
     ],
-    maxTokens: 6000,
+    maxTokens: 4500,
     tools: [{ type: "web_search_20250305", name: "web_search" }]
   });
 
@@ -43,4 +48,8 @@ ${JSON.stringify(
     .map((idea) => ({ ...idea, market_id: market.id }))
     .filter((idea) => !containsExcludedRegion(JSON.stringify(idea)))
     .slice(0, 8);
+}
+
+function clip(value: string, maxLength: number): string {
+  return value.length <= maxLength ? value : `${value.slice(0, maxLength - 1)}…`;
 }

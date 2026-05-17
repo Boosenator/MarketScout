@@ -27,6 +27,7 @@ interface CompleteJsonOptions {
   messages: AnthropicMessage[];
   maxTokens?: number;
   tools?: AnthropicTool[];
+  rateLimitRetries?: number;
 }
 
 export async function completeJson<T>(options: CompleteJsonOptions): Promise<T> {
@@ -55,35 +56,51 @@ export async function completeJson<T>(options: CompleteJsonOptions): Promise<T> 
 }
 
 async function requestAnthropic(options: CompleteJsonOptions): Promise<{ text: string; stopReason?: string }> {
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-api-key": options.apiKey,
-      "anthropic-version": anthropicVersion
-    },
-    body: JSON.stringify({
-      model: options.model,
-      max_tokens: options.maxTokens ?? 2000,
-      system: `${options.system}\nReturn only valid JSON. Start your response with { and do not include any introduction, explanation, or markdown fences.`,
-      messages: options.messages,
-      tools: options.tools
-    })
-  });
+  const attempts = (options.rateLimitRetries ?? 2) + 1;
+  let lastRateLimitDetails = "";
 
-  if (!response.ok) {
-    const details = await response.text();
-    throw new Error(`Anthropic request failed: ${response.status} ${details}`);
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-api-key": options.apiKey,
+        "anthropic-version": anthropicVersion
+      },
+      body: JSON.stringify({
+        model: options.model,
+        max_tokens: options.maxTokens ?? 2000,
+        system: `${options.system}\nReturn only valid JSON. Start your response with { and do not include any introduction, explanation, or markdown fences.`,
+        messages: options.messages,
+        tools: options.tools
+      })
+    });
+
+    if (response.status === 429 && attempt < attempts - 1) {
+      lastRateLimitDetails = await response.text();
+      const retryAfterSeconds = Number(response.headers.get("retry-after"));
+      const delayMs = Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0 ? retryAfterSeconds * 1000 : 65000;
+      console.warn(`Anthropic rate limit hit. Waiting ${Math.round(delayMs / 1000)}s before retry ${attempt + 1}.`);
+      await sleep(delayMs);
+      continue;
+    }
+
+    if (!response.ok) {
+      const details = await response.text();
+      throw new Error(`Anthropic request failed: ${response.status} ${details}`);
+    }
+
+    const payload = (await response.json()) as AnthropicResponse;
+    const text = payload.content
+      .filter((block): block is AnthropicTextBlock => block.type === "text")
+      .map((block) => block.text)
+      .join("\n")
+      .trim();
+
+    return { text, stopReason: payload.stop_reason };
   }
 
-  const payload = (await response.json()) as AnthropicResponse;
-  const text = payload.content
-    .filter((block): block is AnthropicTextBlock => block.type === "text")
-    .map((block) => block.text)
-    .join("\n")
-    .trim();
-
-  return { text, stopReason: payload.stop_reason };
+  throw new Error(`Anthropic request failed: 429 ${lastRateLimitDetails}`);
 }
 
 async function repairJson<T>(options: CompleteJsonOptions, invalidJson: string): Promise<T> {
@@ -181,4 +198,10 @@ function extractFirstJsonObject(value: string): string | null {
   }
 
   return null;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
 }

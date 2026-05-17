@@ -34,7 +34,7 @@ ${JSON.stringify(
         )}\n\nSchema: {"deep_dive":{"analogues":["..."],"entry_bootstrap":"...","entry_vc":"...","entry_lifestyle":"...","main_risks":["..."],"risk_mitigations":["..."],"first_validation_step":"...","team_fit_score":7}}`
       }
     ],
-    maxTokens: 4500,
+    maxTokens: 3500,
     tools: [{ type: "web_search_20250305", name: "web_search" }]
   });
 

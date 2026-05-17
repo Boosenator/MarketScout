@@ -40,7 +40,7 @@ ${JSON.stringify(
         )}\n\nSchema: {"ideas":[{"market_id":"...","title":"...","description":"...","target_audience":"...","monetization":"...","why_now":"...","signals_used":["..."],"killed_at_pass":1|null,"kill_reason":"... or null","urgency_score":number|null,"timing_score":number|null,"advantage_score":number|null,"monetization_score":number|null,"competition_score":number|null,"mvp_speed_score":number|null,"total_score":number|null}]}`
       }
     ],
-    maxTokens: 7000
+    maxTokens: 4500
   });
 
   return result.ideas;

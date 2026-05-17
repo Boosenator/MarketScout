@@ -1,13 +1,13 @@
-import { Markup, type Telegram, type Telegraf } from "telegraf";
 import { getTelegramEnv } from "@/lib/config";
 import { getMarketName } from "@/lib/scout/markets";
 import type { IdeaRecord, PipelineSummary } from "@/lib/scout/types";
+import type { InlineKeyboardMarkup, TelegramClient } from "./client";
 
 type VoteCounts = Record<"fire" | "maybe" | "skip", number>;
 
-export async function postDigest(bot: Telegraf, summary: PipelineSummary): Promise<void> {
+export async function postDigest(telegram: TelegramClient, summary: PipelineSummary): Promise<void> {
   const env = getTelegramEnv();
-  await bot.telegram.sendMessage(
+  await telegram.sendMessage(
     env.TELEGRAM_CHAT_ID,
     [
       `Sluice · ${new Date().toISOString().slice(0, 10)}`,
@@ -21,34 +21,36 @@ export async function postDigest(bot: Telegraf, summary: PipelineSummary): Promi
   );
 }
 
-export async function postIdea(bot: Telegraf, idea: IdeaRecord): Promise<number> {
+export async function postIdea(telegram: TelegramClient, idea: IdeaRecord): Promise<number> {
   const env = getTelegramEnv();
-  const message = await bot.telegram.sendMessage(env.TELEGRAM_CHAT_ID, formatIdeaPost(idea), {
+  const message = await telegram.sendMessage(env.TELEGRAM_CHAT_ID, formatIdeaPost(idea), {
     parse_mode: "Markdown",
-    reply_markup: voteKeyboard(idea.id, { fire: 0, maybe: 0, skip: 0 }).reply_markup
+    reply_markup: voteKeyboard(idea.id, { fire: 0, maybe: 0, skip: 0 })
   });
 
   return message.message_id;
 }
 
 export async function updateIdeaKeyboard(
-  telegram: Telegram,
+  telegram: TelegramClient,
   chatId: number | string,
   messageId: number,
   ideaId: string,
   counts: VoteCounts
 ): Promise<void> {
-  await telegram.editMessageReplyMarkup(chatId, messageId, undefined, voteKeyboard(ideaId, counts).reply_markup);
+  await telegram.editMessageReplyMarkup(chatId, messageId, voteKeyboard(ideaId, counts));
 }
 
-function voteKeyboard(ideaId: string, counts: VoteCounts) {
-  return Markup.inlineKeyboard([
-    [
-      Markup.button.callback(`Fire ${counts.fire}`, `vote_fire_${ideaId}`),
-      Markup.button.callback(`Maybe ${counts.maybe}`, `vote_maybe_${ideaId}`),
-      Markup.button.callback(`Skip ${counts.skip}`, `vote_skip_${ideaId}`)
+function voteKeyboard(ideaId: string, counts: VoteCounts): InlineKeyboardMarkup {
+  return {
+    inline_keyboard: [
+      [
+        { text: `Fire ${counts.fire}`, callback_data: `vote_fire_${ideaId}` },
+        { text: `Maybe ${counts.maybe}`, callback_data: `vote_maybe_${ideaId}` },
+        { text: `Skip ${counts.skip}`, callback_data: `vote_skip_${ideaId}` }
+      ]
     ]
-  ]);
+  };
 }
 
 function formatIdeaPost(idea: IdeaRecord): string {

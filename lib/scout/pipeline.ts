@@ -14,7 +14,7 @@ import {
   insertSignals,
   updateScoutSession
 } from "@/lib/supabase/queries";
-import { createBot } from "@/lib/telegram/bot";
+import { createTelegramClient } from "@/lib/telegram/client";
 import { postDigest, postIdea } from "@/lib/telegram/post-idea";
 
 const phaseDelayMs = 500;
@@ -86,11 +86,11 @@ export async function runScoutPipeline(): Promise<PipelineSummary> {
       posted: 0
     };
 
-    const bot = createBot();
-    await postDigest(bot, summary);
+    const telegram = createTelegramClient();
+    await postDigest(telegram, summary);
 
     for (const idea of withDeepDives) {
-      const messageId = await postIdea(bot, idea);
+      const messageId = await postIdea(telegram, idea);
       await attachTelegramMessage(db, idea.id, messageId);
       summary.posted += 1;
       await sleep(phaseDelayMs);

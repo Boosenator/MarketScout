@@ -1,0 +1,21 @@
+import { NextResponse, type NextRequest } from "next/server";
+import { getEnv } from "@/lib/config";
+import { runScoutPipeline } from "@/lib/scout/pipeline";
+
+export const maxDuration = 300;
+export const dynamic = "force-dynamic";
+
+export async function GET(request: NextRequest): Promise<NextResponse> {
+  const env = getEnv();
+  const auth = request.headers.get("authorization");
+  const cronSecret = request.headers.get("x-cron-secret");
+  const isAuthorized = auth === `Bearer ${env.CRON_SECRET}` || cronSecret === env.CRON_SECRET;
+
+  if (!isAuthorized) {
+    return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+  }
+
+  const summary = await runScoutPipeline();
+
+  return NextResponse.json({ ok: true, summary });
+}

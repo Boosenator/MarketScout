@@ -1,0 +1,157 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { DeepDive, IdeaRecord, ScoredIdea, ScoutSession, Signal } from "@/lib/scout/types";
+
+type Db = SupabaseClient;
+
+export async function createScoutSession(db: Db): Promise<ScoutSession> {
+  const { data, error } = await db
+    .from("scout_sessions")
+    .insert({ date: new Date().toISOString().slice(0, 10), status: "running" })
+    .select("*")
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data as ScoutSession;
+}
+
+export async function updateScoutSession(
+  db: Db,
+  id: string,
+  patch: Partial<Omit<ScoutSession, "id" | "created_at">>
+): Promise<void> {
+  const { error } = await db.from("scout_sessions").update(patch).eq("id", id);
+
+  if (error) {
+    throw error;
+  }
+}
+
+export async function insertSignals(db: Db, sessionId: string, signals: Signal[]): Promise<void> {
+  if (signals.length === 0) {
+    return;
+  }
+
+  const { error } = await db.from("scout_signals").insert(
+    signals.map((signal) => ({
+      session_id: sessionId,
+      market_id: signal.market_id,
+      title: signal.title,
+      source: signal.source,
+      relevance_note: signal.relevance_note
+    }))
+  );
+
+  if (error) {
+    throw error;
+  }
+}
+
+export async function insertIdeas(db: Db, sessionId: string, ideas: ScoredIdea[]): Promise<IdeaRecord[]> {
+  if (ideas.length === 0) {
+    return [];
+  }
+
+  const { data, error } = await db
+    .from("scout_ideas")
+    .insert(
+      ideas.map((idea) => ({
+        session_id: sessionId,
+        market_id: idea.market_id,
+        title: idea.title,
+        description: idea.description,
+        target_audience: idea.target_audience,
+        monetization: idea.monetization,
+        why_now: idea.why_now,
+        signals_used: idea.signals_used,
+        killed_at_pass: idea.killed_at_pass,
+        kill_reason: idea.kill_reason,
+        urgency_score: idea.urgency_score,
+        timing_score: idea.timing_score,
+        advantage_score: idea.advantage_score,
+        monetization_score: idea.monetization_score,
+        competition_score: idea.competition_score,
+        mvp_speed_score: idea.mvp_speed_score,
+        total_score: idea.total_score
+      }))
+    )
+    .select("*");
+
+  if (error) {
+    throw error;
+  }
+
+  return data as IdeaRecord[];
+}
+
+export async function attachDeepDive(db: Db, ideaId: string, deepDive: DeepDive): Promise<IdeaRecord> {
+  const { data, error } = await db
+    .from("scout_ideas")
+    .update({ deep_dive: deepDive })
+    .eq("id", ideaId)
+    .select("*")
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data as IdeaRecord;
+}
+
+export async function attachTelegramMessage(db: Db, ideaId: string, messageId: number): Promise<void> {
+  const { error } = await db.from("scout_ideas").update({ telegram_message_id: messageId }).eq("id", ideaId);
+
+  if (error) {
+    throw error;
+  }
+}
+
+export async function upsertVote(
+  db: Db,
+  ideaId: string,
+  userId: number,
+  username: string | null,
+  vote: "fire" | "maybe" | "skip"
+): Promise<void> {
+  const { error } = await db.from("idea_votes").upsert(
+    {
+      idea_id: ideaId,
+      telegram_user_id: userId,
+      telegram_username: username,
+      vote,
+      voted_at: new Date().toISOString()
+    },
+    { onConflict: "idea_id,telegram_user_id" }
+  );
+
+  if (error) {
+    throw error;
+  }
+}
+
+export async function getVoteCounts(db: Db, ideaId: string): Promise<Record<"fire" | "maybe" | "skip", number>> {
+  const { data, error } = await db.from("idea_votes").select("vote").eq("idea_id", ideaId);
+
+  if (error) {
+    throw error;
+  }
+
+  return {
+    fire: data.filter((row) => row.vote === "fire").length,
+    maybe: data.filter((row) => row.vote === "maybe").length,
+    skip: data.filter((row) => row.vote === "skip").length
+  };
+}
+
+export async function getIdea(db: Db, ideaId: string): Promise<IdeaRecord | null> {
+  const { data, error } = await db.from("scout_ideas").select("*").eq("id", ideaId).maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data as IdeaRecord | null;
+}

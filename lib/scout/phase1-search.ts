@@ -1,4 +1,5 @@
 import { completeJson } from "./anthropic";
+import { targetRegionText } from "./markets";
 import type { Market, Signal } from "./types";
 
 const model = "claude-haiku-4-5-20251001";
@@ -14,11 +15,11 @@ export async function scoutMarketSignals(apiKey: string, market: Market): Promis
     apiKey,
     model,
     system:
-      "You are a market research scout. Use web search signals to find fresh, commercially relevant market changes. Write all human-facing fields in Russian.",
+      `You are a market research scout. Target geography: ${targetRegionText}. Use web search signals to find fresh, commercially relevant market changes in Ukraine, Europe, and the USA. Do not use Russia as the default market or regulatory context. Write all human-facing fields in Russian.`,
     messages: [
       {
         role: "user",
-        content: `Scan these search angles and extract 10-15 concise signals.\n${prompts}\n\nSchema: {"signals":[{"title":"...","source":"...","relevance_note":"..."}]}`
+        content: `Scan these search angles and extract 10-15 concise signals for target geography: ${targetRegionText}.\n${prompts}\n\nSchema: {"signals":[{"title":"...","source":"...","relevance_note":"..."}]}`
       }
     ],
     maxTokens: 2500,

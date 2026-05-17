@@ -1,10 +1,13 @@
 import type { Market } from "./types";
 
+export const targetRegions = ["Украина", "Европа", "США"] as const;
+export const targetRegionText = targetRegions.join(", ");
+
 const searchAngles = [
-  "emerging niches 2025",
-  "underserved pain points",
-  "fastest growing sub-segments",
-  "new monetization models"
+  "emerging niches 2025 Ukraine Europe USA",
+  "underserved pain points Ukraine Europe USA",
+  "fastest growing sub-segments Europe US Ukraine",
+  "new monetization models Europe USA Ukraine"
 ];
 
 export const markets: Market[] = [

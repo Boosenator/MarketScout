@@ -12,10 +12,10 @@ export async function postDigest(telegram: TelegramClient, summary: PipelineSumm
     [
       `Sluice · ${new Date().toISOString().slice(0, 10)}`,
       "",
-      `Markets scanned: ${summary.marketsScanned}`,
-      `Ideas generated: ${summary.ideasGenerated}`,
-      `Killed: ${summary.killedPass1 + summary.killedPass2}`,
-      `Today's fire candidates: ${summary.survivors}`
+      `Просканировано рынков: ${summary.marketsScanned}`,
+      `Идей сгенерировано: ${summary.ideasGenerated}`,
+      `Отсеяно: ${summary.killedPass1 + summary.killedPass2}`,
+      `Годных кандидатов: ${summary.survivors}`
     ].join("\n"),
     { parse_mode: "Markdown" }
   );
@@ -41,39 +41,40 @@ export async function updateIdeaKeyboard(
   await telegram.editMessageReplyMarkup(chatId, messageId, voteKeyboard(ideaId, counts));
 }
 
-function voteKeyboard(ideaId: string, counts: VoteCounts): InlineKeyboardMarkup {
-  return {
-    inline_keyboard: [
-      [
-        { text: `Fire ${counts.fire}`, callback_data: `vote_fire_${ideaId}` },
-        { text: `Maybe ${counts.maybe}`, callback_data: `vote_maybe_${ideaId}` },
-        { text: `Skip ${counts.skip}`, callback_data: `vote_skip_${ideaId}` }
-      ]
-    ]
-  };
-}
-
-function formatIdeaPost(idea: IdeaRecord): string {
+export function formatIdeaPost(idea: IdeaRecord): string {
   const deepDive = idea.deep_dive;
   const analogues = deepDive?.analogues.slice(0, 3).join(", ") ?? "n/a";
   const firstRisk = deepDive?.main_risks[0] ?? "n/a";
   const firstStep = deepDive?.first_validation_step ?? "n/a";
 
   return [
-    `${escapeMarkdown(getMarketName(idea.market_id))} · score: ${idea.total_score ?? 0}/100`,
+    `🔍 ${escapeMarkdown(getMarketName(idea.market_id))} · score: ${idea.total_score ?? 0}/100`,
     "",
-    `*${escapeMarkdown(idea.title)}*`,
+    `💡 *${escapeMarkdown(idea.title)}*`,
     "",
     escapeMarkdown(idea.description ?? ""),
     "",
-    `*Audience:* ${escapeMarkdown(idea.target_audience ?? "")}`,
-    `*Monetization:* ${escapeMarkdown(idea.monetization ?? "")}`,
-    `*Why now:* ${escapeMarkdown(idea.why_now ?? "")}`,
+    `👥 *Аудитория:* ${escapeMarkdown(idea.target_audience ?? "")}`,
+    `💰 *Монетизация:* ${escapeMarkdown(idea.monetization ?? "")}`,
+    `⚡️ *Почему сейчас:* ${escapeMarkdown(idea.why_now ?? "")}`,
     "",
-    `*Analogues:* ${escapeMarkdown(analogues)}`,
-    `*First step:* ${escapeMarkdown(firstStep)}`,
-    `*Main risk:* ${escapeMarkdown(firstRisk)}`
+    `🏆 *Аналоги:* ${escapeMarkdown(analogues)}`,
+    `🚀 *Первый шаг:* ${escapeMarkdown(firstStep)}`,
+    `⚠️ *Главный риск:* ${escapeMarkdown(firstRisk)}`,
+    "─────────────────────"
   ].join("\n");
+}
+
+function voteKeyboard(ideaId: string, counts: VoteCounts): InlineKeyboardMarkup {
+  return {
+    inline_keyboard: [
+      [
+        { text: `🔥 ${counts.fire}`, callback_data: `vote_fire_${ideaId}` },
+        { text: `🤔 ${counts.maybe}`, callback_data: `vote_maybe_${ideaId}` },
+        { text: `👎 ${counts.skip}`, callback_data: `vote_skip_${ideaId}` }
+      ]
+    ]
+  };
 }
 
 function escapeMarkdown(value: string): string {

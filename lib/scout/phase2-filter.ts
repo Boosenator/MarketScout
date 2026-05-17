@@ -16,7 +16,7 @@ export async function filterAndScoreIdeas(apiKey: string, ideas: RawIdea[]): Pro
     apiKey,
     model,
     system:
-      "You are a calibrated startup investment filter. Be skeptical, but do not kill ideas just because a market is competitive, broad, or has incumbents. Kill only when a hard kill criterion is clearly and specifically true. Otherwise keep killed_at_pass null and score the idea honestly. Keep all copied strings compact.",
+      "You are a calibrated startup investment filter. Be skeptical, but do not kill ideas just because a market is competitive, broad, or has incumbents. Kill only when a hard kill criterion is clearly and specifically true. Otherwise keep killed_at_pass null and score the idea honestly. Write kill_reason and any rewritten human-facing fields in Russian. Keep all copied strings compact.",
     messages: [
       {
         role: "user",

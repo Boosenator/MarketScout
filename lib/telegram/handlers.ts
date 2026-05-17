@@ -124,11 +124,11 @@ async function runMarketCommand(
   marketId: string | null
 ): Promise<void> {
   if (!marketId) {
-    await telegram.sendMessage(chatId, `Usage: /${command} <market_id>\n\n${marketListText()}`);
+    await telegram.sendMessage(chatId, `Формат: /${command} <market_id>\n\n${marketListText()}`);
     return;
   }
 
-  await telegram.sendMessage(chatId, `Running ${command} test for ${marketId}. This can take a bit.`);
+  await telegram.sendMessage(chatId, `Запускаю ${command} для рынка ${marketId}. Это может занять пару минут.`);
 
   try {
     if (command === "phase1") {
@@ -141,10 +141,15 @@ async function runMarketCommand(
       return;
     }
 
-    await telegram.sendMessage(chatId, summarizePhase3(await runPhase3Test(marketId)));
+    const phase3Result = await runPhase3Test(marketId);
+    await telegram.sendMessage(
+      chatId,
+      summarizePhase3(phase3Result),
+      phase3Result.selectedIdea ? { parse_mode: "Markdown" } : {}
+    );
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    await telegram.sendMessage(chatId, `Test failed: ${errorMessage}`);
+    await telegram.sendMessage(chatId, `Тест упал: ${errorMessage}`);
   }
 }
 
@@ -192,11 +197,11 @@ function parseCommand(text: string): { name: string; argument: string | null } |
 
 function helpText(): string {
   return [
-    "MarketScout commands:",
-    "/markets - list market ids",
-    "/phase1 <market_id> - test signal scouting",
-    "/phase2 <market_id> - test generate + filter",
-    "/phase3 <market_id> - test deep dive for top survivor",
-    "/testmarket <market_id> - run phase1 -> phase3"
+    "Команды MarketScout:",
+    "/markets - список market_id",
+    "/phase1 <market_id> - тест поиска сигналов",
+    "/phase2 <market_id> - тест генерации и фильтра",
+    "/phase3 <market_id> - deep dive для лучшей идеи",
+    "/testmarket <market_id> - прогнать phase1 -> phase3"
   ].join("\n");
 }

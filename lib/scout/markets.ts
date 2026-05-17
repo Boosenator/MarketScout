@@ -8,18 +8,18 @@ const searchAngles = [
 ];
 
 export const markets: Market[] = [
-  { id: "poverty", name: "Poverty Market", searchAngles },
-  { id: "connection", name: "Connection Market", searchAngles },
-  { id: "aging", name: "Aging Market", searchAngles },
-  { id: "fuel", name: "Fuel Market", searchAngles },
-  { id: "better_life", name: "Better Life Market", searchAngles },
-  { id: "freedom", name: "Freedom Market", searchAngles },
-  { id: "media", name: "Media Market", searchAngles },
-  { id: "education", name: "Education Market", searchAngles },
-  { id: "fashion", name: "Fashion Market", searchAngles },
-  { id: "entertainment", name: "Entertainment Market", searchAngles },
-  { id: "beauty", name: "Beauty Market", searchAngles },
-  { id: "lifestyle", name: "Lifestyle Market", searchAngles }
+  { id: "poverty", name: "Рынок бедности", searchAngles },
+  { id: "connection", name: "Рынок связей", searchAngles },
+  { id: "aging", name: "Рынок старения", searchAngles },
+  { id: "fuel", name: "Рынок топлива", searchAngles },
+  { id: "better_life", name: "Рынок лучшей жизни", searchAngles },
+  { id: "freedom", name: "Рынок свободы", searchAngles },
+  { id: "media", name: "Рынок медиа", searchAngles },
+  { id: "education", name: "Рынок образования", searchAngles },
+  { id: "fashion", name: "Рынок моды", searchAngles },
+  { id: "entertainment", name: "Рынок развлечений", searchAngles },
+  { id: "beauty", name: "Рынок красоты", searchAngles },
+  { id: "lifestyle", name: "Рынок лайфстайла", searchAngles }
 ];
 
 export function getMarketName(marketId: string): string {

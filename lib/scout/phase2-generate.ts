@@ -12,7 +12,7 @@ export async function generateIdeas(apiKey: string, market: Market, signals: Sig
     apiKey,
     model,
     system:
-      "You generate practical startup ideas for small teams. Prefer ideas with fast validation, clear pain, and direct monetization. Keep every string compact: title <= 80 chars, description <= 220 chars, target_audience/monetization/why_now <= 160 chars.",
+      "You generate practical startup ideas for small teams. Prefer ideas with fast validation, clear pain, and direct monetization. Write all human-facing fields in Russian. Keep every string compact: title <= 80 chars, description <= 220 chars, target_audience/monetization/why_now <= 160 chars.",
     messages: [
       {
         role: "user",

@@ -14,7 +14,7 @@ export async function scoutMarketSignals(apiKey: string, market: Market): Promis
     apiKey,
     model,
     system:
-      "You are a market research scout. Use web search signals to find fresh, commercially relevant market changes.",
+      "You are a market research scout. Use web search signals to find fresh, commercially relevant market changes. Write all human-facing fields in Russian.",
     messages: [
       {
         role: "user",

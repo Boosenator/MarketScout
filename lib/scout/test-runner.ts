@@ -13,6 +13,7 @@ import {
   insertSignals,
   updateScoutSession
 } from "@/lib/supabase/queries";
+import { formatIdeaPost } from "@/lib/telegram/post-idea";
 
 export type PhaseName = "phase1" | "phase2" | "phase3" | "all";
 
@@ -118,9 +119,9 @@ export function summarizePhase1(result: Phase1TestResult): string {
     .join("\n");
 
   return [
-    `Phase 1 done: ${getMarketName(result.market.id)}`,
-    `Session: ${result.sessionId}`,
-    `Signals: ${result.signals.length}`,
+    `Phase 1 готова: ${getMarketName(result.market.id)}`,
+    `Сессия: ${result.sessionId}`,
+    `Сигналов: ${result.signals.length}`,
     "",
     topSignals
   ].join("\n");
@@ -146,35 +147,26 @@ export function summarizePhase2(result: Phase2TestResult): string {
     .join("\n");
 
   return [
-    `Phase 2 done: ${getMarketName(result.market.id)}`,
-    `Session: ${result.sessionId}`,
-    `Signals: ${result.signals.length}`,
-    `Raw ideas: ${result.rawIdeas.length}`,
-    `Scored ideas: ${result.scoredIdeas.length}`,
-    `Killed: ${killed}`,
-    `Survivors >=65: ${alive.length}`,
+    `Phase 2 готова: ${getMarketName(result.market.id)}`,
+    `Сессия: ${result.sessionId}`,
+    `Сигналов: ${result.signals.length}`,
+    `Сырых идей: ${result.rawIdeas.length}`,
+    `Оценено идей: ${result.scoredIdeas.length}`,
+    `Отсеяно: ${killed}`,
+    `Прошло >=65: ${alive.length}`,
     "",
-    topIdeas || "No survivors above threshold.",
-    alive.length === 0 && lowScoreIdeas ? `\nBest non-killed ideas:\n${lowScoreIdeas}` : "",
-    alive.length === 0 && killedIdeas ? `\nKill reasons:\n${killedIdeas}` : ""
+    topIdeas || "Нет идей выше порога.",
+    alive.length === 0 && lowScoreIdeas ? `\nЛучшие неубитые идеи:\n${lowScoreIdeas}` : "",
+    alive.length === 0 && killedIdeas ? `\nПричины отсева:\n${killedIdeas}` : ""
   ].join("\n");
 }
 
 export function summarizePhase3(result: Phase3TestResult): string {
   if (!result.selectedIdea || !result.deepDive) {
-    return `${summarizePhase2(result)}\n\nPhase 3 skipped: no survivor with score >= 65.`;
+    return `${summarizePhase2(result)}\n\nPhase 3 пропущена: нет идей со score >= 65.`;
   }
 
-  return [
-    `Phase 3 done: ${getMarketName(result.market.id)}`,
-    `Session: ${result.sessionId}`,
-    `Idea: ${result.selectedIdea.title}`,
-    `Score: ${result.selectedIdea.total_score ?? 0}/100`,
-    `Team fit: ${result.deepDive.team_fit_score}/10`,
-    "",
-    `First step: ${result.deepDive.first_validation_step}`,
-    `Main risk: ${result.deepDive.main_risks[0] ?? "n/a"}`
-  ].join("\n");
+  return `${formatIdeaPost({ ...result.selectedIdea, deep_dive: result.deepDive })}\n\nСессия: ${result.sessionId}`;
 }
 
 function requireMarket(marketId: string): Market {

@@ -12,7 +12,7 @@ export async function deepDiveIdea(apiKey: string, idea: ScoredIdea): Promise<De
     apiKey,
     model,
     system:
-      "You are a pragmatic venture analyst. Produce a concrete deep dive with competitors, entry paths, risks, and a first validation step. team_fit_score must be an integer from 0 to 10, not a percentage.",
+      "You are a pragmatic venture analyst. Produce a concrete deep dive with competitors, entry paths, risks, and a first validation step. Write all human-facing fields in Russian. team_fit_score must be an integer from 0 to 10, not a percentage.",
     messages: [
       {
         role: "user",

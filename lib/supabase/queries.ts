@@ -156,6 +156,21 @@ export async function getIdea(db: Db, ideaId: string): Promise<IdeaRecord | null
   return data as IdeaRecord | null;
 }
 
+export async function listAnalyzedIdeas(db: Db, limit = 20): Promise<IdeaRecord[]> {
+  const { data, error } = await db
+    .from("scout_ideas")
+    .select("*")
+    .not("deep_dive", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    throw error;
+  }
+
+  return data as IdeaRecord[];
+}
+
 export async function claimTelegramUpdate(
   db: Db,
   updateId: number,

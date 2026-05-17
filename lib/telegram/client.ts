@@ -27,6 +27,10 @@ export interface SendMessageOptions {
   reply_markup?: InlineKeyboardMarkup;
 }
 
+export interface EditMessageTextOptions extends SendMessageOptions {
+  disable_web_page_preview?: boolean;
+}
+
 export class TelegramClient {
   constructor(private readonly token: string) {}
 
@@ -47,6 +51,20 @@ export class TelegramClient {
       chat_id: chatId,
       message_id: messageId,
       reply_markup: replyMarkup
+    });
+  }
+
+  async editMessageText(
+    chatId: number | string,
+    messageId: number,
+    text: string,
+    options: EditMessageTextOptions = {}
+  ): Promise<void> {
+    await this.call<true>("editMessageText", {
+      chat_id: chatId,
+      message_id: messageId,
+      text,
+      ...options
     });
   }
 

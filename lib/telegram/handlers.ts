@@ -16,9 +16,11 @@ import {
   upsertVote
 } from "@/lib/supabase/queries";
 import { createTelegramClient, type TelegramClient } from "./client";
+import { editMainMenu, sendMainMenu, showHelpMenu, showResultsPage, showTestsMenu } from "./menu";
 import { updateIdeaKeyboard } from "./post-idea";
 
 const votePattern = /^vote_(fire|maybe|skip)_(.+)$/;
+const resultsPattern = /^menu_results_(\d+)$/;
 
 interface TelegramUser {
   id: number;
@@ -66,7 +68,7 @@ export async function handleTelegramUpdate(update: TelegramUpdate): Promise<void
 
   try {
     if (update.callback_query) {
-      await handleVote(telegram, update.callback_query);
+      await handleCallback(telegram, update.callback_query);
       await markUpdateFinished(db, update, "done");
       return;
     }
@@ -102,19 +104,72 @@ async function handleCommand(telegram: TelegramClient, message: TelegramIncoming
     return;
   }
 
-  if (command.name === "start" || command.name === "help") {
-    await telegram.sendMessage(message.chat.id, helpText());
+  if (command.name === "start" || command.name === "help" || command.name === "menu") {
+    await sendMainMenu(telegram, message.chat.id);
     return;
   }
 
   if (command.name === "markets") {
-    await telegram.sendMessage(message.chat.id, `Available markets:\n${marketListText()}`);
+    await telegram.sendMessage(message.chat.id, `Доступные рынки:\n${marketListText()}`);
     return;
   }
 
   if (command.name === "phase1" || command.name === "phase2" || command.name === "phase3" || command.name === "testmarket") {
     await runMarketCommand(telegram, message.chat.id, command.name, command.argument);
   }
+}
+
+async function handleCallback(telegram: TelegramClient, callbackQuery: TelegramCallbackQuery): Promise<void> {
+  const data = callbackQuery.data ?? "";
+  const message = callbackQuery.message;
+
+  if (!message) {
+    await telegram.answerCallbackQuery(callbackQuery.id, "Нет сообщения для обновления");
+    return;
+  }
+
+  const resultsMatch = data.match(resultsPattern);
+
+  if (resultsMatch) {
+    await showResultsPage(telegram, message.chat.id, message.message_id, Number(resultsMatch[1]));
+    await telegram.answerCallbackQuery(callbackQuery.id, "Открываю результаты");
+    return;
+  }
+
+  if (data === "menu_main") {
+    await editMainMenu(telegram, message.chat.id, message.message_id);
+    await telegram.answerCallbackQuery(callbackQuery.id, "Меню");
+    return;
+  }
+
+  if (data === "menu_tests") {
+    await showTestsMenu(telegram, message.chat.id, message.message_id);
+    await telegram.answerCallbackQuery(callbackQuery.id, "Тесты");
+    return;
+  }
+
+  if (data === "menu_markets") {
+    await telegram.editMessageText(message.chat.id, message.message_id, `Доступные рынки:\n${marketListText()}`, {
+      reply_markup: {
+        inline_keyboard: [[{ text: "⬅️ Главное меню", callback_data: "menu_main" }]]
+      }
+    });
+    await telegram.answerCallbackQuery(callbackQuery.id, "Рынки");
+    return;
+  }
+
+  if (data === "menu_help") {
+    await showHelpMenu(telegram, message.chat.id, message.message_id);
+    await telegram.answerCallbackQuery(callbackQuery.id, "Помощь");
+    return;
+  }
+
+  if (votePattern.test(data)) {
+    await handleVote(telegram, callbackQuery);
+    return;
+  }
+
+  await telegram.answerCallbackQuery(callbackQuery.id, "Неизвестное действие");
 }
 
 async function runMarketCommand(
@@ -179,7 +234,7 @@ async function handleVote(telegram: TelegramClient, callbackQuery: TelegramCallb
     await updateIdeaKeyboard(telegram, message.chat.id, idea.telegram_message_id, ideaId, counts);
   }
 
-  await telegram.answerCallbackQuery(callbackQuery.id, "Vote accepted");
+  await telegram.answerCallbackQuery(callbackQuery.id, "Голос принят");
 }
 
 function parseCommand(text: string): { name: string; argument: string | null } | null {
@@ -193,15 +248,4 @@ function parseCommand(text: string): { name: string; argument: string | null } |
   const argument = rest.join(" ").trim() || null;
 
   return { name, argument };
-}
-
-function helpText(): string {
-  return [
-    "Команды MarketScout:",
-    "/markets - список market_id",
-    "/phase1 <market_id> - тест поиска сигналов",
-    "/phase2 <market_id> - тест генерации и фильтра",
-    "/phase3 <market_id> - deep dive для лучшей идеи",
-    "/testmarket <market_id> - прогнать phase1 -> phase3"
-  ].join("\n");
 }

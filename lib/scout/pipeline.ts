@@ -64,18 +64,6 @@ export async function runScoutPipeline(): Promise<PipelineSummary> {
     }
 
     const topFive = survivors.sort((a, b) => (b.total_score ?? 0) - (a.total_score ?? 0)).slice(0, 5);
-    const withDeepDives: IdeaRecord[] = [];
-
-    for (const idea of topFive) {
-      try {
-        const deepDive = await deepDiveIdea(env.ANTHROPIC_API_KEY, idea);
-        withDeepDives.push(await attachDeepDive(db, idea.id, deepDive));
-        await sleep(phaseDelayMs);
-      } catch (error) {
-        console.error(`Deep dive failed: ${idea.id}`, error);
-      }
-    }
-
     const summary: PipelineSummary = {
       sessionId: session.id,
       marketsScanned,
@@ -86,15 +74,7 @@ export async function runScoutPipeline(): Promise<PipelineSummary> {
       posted: 0
     };
 
-    const telegram = createTelegramClient();
-    await postDigest(telegram, summary);
-
-    for (const idea of withDeepDives) {
-      const messageId = await postIdea(telegram, idea);
-      await attachTelegramMessage(db, idea.id, messageId);
-      summary.posted += 1;
-      await sleep(phaseDelayMs);
-    }
+    await postMergedAnalysis(env.ANTHROPIC_API_KEY, db, topFive, summary);
 
     await updateScoutSession(db, session.id, {
       status: "done",
@@ -109,6 +89,35 @@ export async function runScoutPipeline(): Promise<PipelineSummary> {
   } catch (error) {
     await updateScoutSession(db, session.id, { status: "failed" });
     throw error;
+  }
+}
+
+async function postMergedAnalysis(
+  apiKey: string,
+  db: ReturnType<typeof createSupabaseAdmin>,
+  topIdeas: IdeaRecord[],
+  summary: PipelineSummary
+): Promise<void> {
+  const withDeepDives: IdeaRecord[] = [];
+
+  for (const idea of topIdeas) {
+    try {
+      const deepDive = await deepDiveIdea(apiKey, idea);
+      withDeepDives.push(await attachDeepDive(db, idea.id, deepDive));
+      await sleep(phaseDelayMs);
+    } catch (error) {
+      console.error(`Deep dive failed: ${idea.id}`, error);
+    }
+  }
+
+  const telegram = createTelegramClient();
+  await postDigest(telegram, summary);
+
+  for (const idea of withDeepDives) {
+    const messageId = await postIdea(telegram, idea);
+    await attachTelegramMessage(db, idea.id, messageId);
+    summary.posted += 1;
+    await sleep(phaseDelayMs);
   }
 }
 

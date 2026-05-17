@@ -16,11 +16,23 @@ export async function filterAndScoreIdeas(apiKey: string, ideas: RawIdea[]): Pro
     apiKey,
     model,
     system:
-      "You are a severe startup investment filter. Kill weak ideas quickly, then score survivors with disciplined criteria. Keep all copied strings compact and avoid long explanations.",
+      "You are a calibrated startup investment filter. Be skeptical, but do not kill ideas just because a market is competitive, broad, or has incumbents. Kill only when a hard kill criterion is clearly and specifically true. Otherwise keep killed_at_pass null and score the idea honestly. Keep all copied strings compact.",
     messages: [
       {
         role: "user",
-        content: `Apply pass 1 kill criteria and pass 2 scoring. Kill if commoditized with $10M+ capex, regulatory hell, dominant 70%+ network-effect player, TAM below $100M, or impossible for 1-3 people in 6 months. Score survivors 0-100 on urgency, timing, advantage, monetization, competition, and MVP speed. total_score is weighted 20/20/15/15/15/15.\n\nIdeas:\n${JSON.stringify(
+        content: `Apply pass 1 hard-kill criteria and pass 2 scoring.
+
+Hard-kill only if at least one criterion is clearly true:
+- commoditized and needs $10M+ capex before validation
+- regulatory hell with no practical workaround
+- one dominant player has 70%+ share plus strong network effect
+- TAM is clearly below $100M
+- impossible for 1-3 people to validate in 6 months
+
+Do not kill for normal competition, uncertain TAM, need for partnerships, brand-building, or weak differentiation. Those should reduce scores, not kill the idea. Do not use killed_at_pass=2 in this response; pass 2 is scoring only. Score all non-killed ideas 0-100 on urgency, timing, advantage, monetization, competition, and MVP speed. total_score is weighted 20/20/15/15/15/15.
+
+Ideas:
+${JSON.stringify(
           ideas,
           null,
           2

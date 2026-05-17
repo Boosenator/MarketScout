@@ -133,6 +133,17 @@ export function summarizePhase2(result: Phase2TestResult): string {
     .slice(0, 5)
     .map((idea, index) => `${index + 1}. ${idea.title} - ${idea.total_score ?? 0}/100`)
     .join("\n");
+  const killedIdeas = result.scoredIdeas
+    .filter((idea) => idea.killed_at_pass !== null)
+    .slice(0, 5)
+    .map((idea, index) => `${index + 1}. ${idea.title}: ${idea.kill_reason ?? "no reason"}`)
+    .join("\n");
+  const lowScoreIdeas = result.scoredIdeas
+    .filter((idea) => idea.killed_at_pass === null)
+    .sort((a, b) => (b.total_score ?? 0) - (a.total_score ?? 0))
+    .slice(0, 5)
+    .map((idea, index) => `${index + 1}. ${idea.title} - ${idea.total_score ?? 0}/100`)
+    .join("\n");
 
   return [
     `Phase 2 done: ${getMarketName(result.market.id)}`,
@@ -143,7 +154,9 @@ export function summarizePhase2(result: Phase2TestResult): string {
     `Killed: ${killed}`,
     `Survivors >=65: ${alive.length}`,
     "",
-    topIdeas || "No survivors above threshold."
+    topIdeas || "No survivors above threshold.",
+    alive.length === 0 && lowScoreIdeas ? `\nBest non-killed ideas:\n${lowScoreIdeas}` : "",
+    alive.length === 0 && killedIdeas ? `\nKill reasons:\n${killedIdeas}` : ""
   ].join("\n");
 }
 

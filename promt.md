@@ -251,3 +251,30 @@ CRON_SECRET=               # для захисту cron endpoint
   логувати і продовжувати з наступним ринком/ідеєю
 - Rate limiting: між API запитами робити затримку 500ms
 - Весь код TypeScript strict, без any
+
+## Статус виконання
+
+Оновлено: 2026-05-17.
+
+Зроблено:
+- [x] Ініціалізовано Next.js 14 API-only проєкт зі strict TypeScript.
+- [x] Додано базову структуру `app/api`, `lib/scout`, `lib/supabase`, `lib/telegram`.
+- [x] Додано Supabase client, DB queries і міграцію `supabase/migrations/001_init.sql`.
+- [x] Додано `markets.ts` з 12 ринками та пошуковими кутами.
+- [x] Реалізовано Phase 1 scout через Anthropic Haiku + web search tool.
+- [x] Реалізовано Phase 2 generate/filter/scoring через Anthropic Haiku.
+- [x] Реалізовано Phase 3 deep dive для top-5 через Anthropic Sonnet.
+- [x] Реалізовано Telegram bot posting, inline buttons і handlers для голосування.
+- [x] Реалізовано cron endpoint `/api/cron/scout` із захистом через `CRON_SECRET`.
+- [x] Додано `vercel.json`, `.env.example`, `README.md`, `package-lock.json`.
+- [x] Пройдено перевірки `npm run typecheck`, `npm run lint`, `npm run build`.
+- [x] Зроблено initial commit і push у `Boosenator/MarketScout`.
+- [x] Змінні оточення додані користувачем.
+
+Наступне:
+- [ ] Застосувати Supabase migration у реальному Supabase project.
+- [ ] Протестувати Phase 1 на одному ринку з реальним `ANTHROPIC_API_KEY`.
+- [ ] Протестувати повний cron pipeline.
+- [ ] Зареєструвати Telegram webhook після deploy.
+- [ ] Деплой на Vercel і додавання env vars у Vercel.
+- [ ] Окремо розібрати `npm audit` попередження перед продом.

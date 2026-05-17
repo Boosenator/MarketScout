@@ -278,3 +278,13 @@ CRON_SECRET=               # для захисту cron endpoint
 - [ ] Зареєструвати Telegram webhook після deploy.
 - [ ] Деплой на Vercel і додавання env vars у Vercel.
 - [ ] Окремо розібрати `npm audit` попередження перед продом.
+
+## Статус 2026-05-17 / deploy
+
+Зроблено:
+- [x] Supabase migration застосована користувачем.
+- [x] Прод-домен Vercel: `https://market-scout-seven.vercel.app/`.
+
+Потрібно для webhook:
+- [ ] Зареєструвати Telegram webhook на `https://market-scout-seven.vercel.app/api/telegram`.
+- [ ] Для реєстрації потрібен локальний доступ до `TELEGRAM_BOT_TOKEN` або залінкований Vercel project для `vercel env pull`.

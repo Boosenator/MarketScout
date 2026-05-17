@@ -16,7 +16,7 @@ export async function filterAndScoreIdeas(apiKey: string, ideas: RawIdea[]): Pro
     apiKey,
     model,
     system:
-      "You are a severe startup investment filter. Kill weak ideas quickly, then score survivors with disciplined criteria.",
+      "You are a severe startup investment filter. Kill weak ideas quickly, then score survivors with disciplined criteria. Keep all copied strings compact and avoid long explanations.",
     messages: [
       {
         role: "user",
@@ -27,7 +27,7 @@ export async function filterAndScoreIdeas(apiKey: string, ideas: RawIdea[]): Pro
         )}\n\nSchema: {"ideas":[{"market_id":"...","title":"...","description":"...","target_audience":"...","monetization":"...","why_now":"...","signals_used":["..."],"killed_at_pass":1|null,"kill_reason":"... or null","urgency_score":number|null,"timing_score":number|null,"advantage_score":number|null,"monetization_score":number|null,"competition_score":number|null,"mvp_speed_score":number|null,"total_score":number|null}]}`
       }
     ],
-    maxTokens: 3500
+    maxTokens: 7000
   });
 
   return result.ideas;

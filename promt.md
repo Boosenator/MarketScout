@@ -388,3 +388,9 @@ CRON_SECRET=               # для захисту cron endpoint
 - [x] Deep dive в full pipeline обмежено топ-2 і без повторного web-search, щоб не бити TPM у фінальній фазі.
 - [x] Якщо один ринок впав на 429/іншу помилку, pipeline пропускає його далі, а не повторює той самий ринок нескінченно.
 - [x] Anthropic retry зменшено до 1 повтору, JSON repair більше не просить 8000 output tokens.
+## Статус 2026-05-18 / Telegram post completeness
+
+Зроблено:
+- [x] Web-posting ідеї в Telegram тепер спочатку догенеровує `deep_dive`, якщо його ще немає.
+- [x] Formatter Telegram-поста більше не виводить `n/a` для аналогів, першого кроку або головного ризику.
+- [x] Deep dive sanitizer підставляє конкретні fallback-и, якщо модель повернула порожні масиви або `n/a`.

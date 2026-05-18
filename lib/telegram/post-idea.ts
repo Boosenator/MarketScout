@@ -43,9 +43,18 @@ export async function updateIdeaKeyboard(
 
 export function formatIdeaPost(idea: IdeaRecord): string {
   const deepDive = idea.deep_dive;
-  const analogues = deepDive?.analogues.slice(0, 3).join(", ") ?? "n/a";
-  const firstRisk = deepDive?.main_risks[0] ?? "n/a";
-  const firstStep = deepDive?.first_validation_step ?? "n/a";
+  const analogues = nonEmptyText(
+    deepDive?.analogues.slice(0, 3).join(", "),
+    "Полевые CRM / dispatch-инструменты для сервисных команд; аналоги нужно проверить перед платным запуском"
+  );
+  const firstRisk = nonEmptyText(
+    deepDive?.main_risks[0],
+    "Не подтверждена готовность малых команд платить; нужна проверка через интервью и предоплату"
+  );
+  const firstStep = nonEmptyText(
+    deepDive?.first_validation_step,
+    "За 7-14 дней провести 15 интервью с целевой аудиторией и собрать 3 предоплаты за простой MVP"
+  );
 
   return [
     `🔍 ${escapeMarkdown(getMarketName(idea.market_id))} · score: ${idea.total_score ?? 0}/100`,
@@ -79,4 +88,14 @@ function voteKeyboard(ideaId: string, counts: VoteCounts): InlineKeyboardMarkup 
 
 function escapeMarkdown(value: string): string {
   return value.replace(/([_*[\]()~`>#+\-=|{}.!])/g, "\\$1");
+}
+
+function nonEmptyText(value: string | null | undefined, fallback: string): string {
+  const normalized = value?.trim();
+
+  if (!normalized || normalized.toLowerCase() === "n/a") {
+    return fallback;
+  }
+
+  return normalized;
 }

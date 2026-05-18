@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { getAnthropicEnv } from "@/lib/config";
+import { deepDiveIdea } from "@/lib/scout/phase3-deepdive";
 import { createSupabaseAdmin } from "@/lib/supabase/client";
-import { attachTelegramMessage, getIdea } from "@/lib/supabase/queries";
+import { attachDeepDive, attachTelegramMessage, getIdea } from "@/lib/supabase/queries";
 import { createTelegramClient } from "@/lib/telegram/client";
 import { postIdea } from "@/lib/telegram/post-idea";
 
@@ -21,8 +23,16 @@ export async function POST(
     return NextResponse.json({ ok: false, error: "already_posted" });
   }
 
+  const ideaToPost = idea.deep_dive
+    ? idea
+    : await attachDeepDive(
+        db,
+        idea.id,
+        await deepDiveIdea(getAnthropicEnv().ANTHROPIC_API_KEY, idea, { useWebSearch: false })
+      );
+
   const telegram = createTelegramClient();
-  const messageId = await postIdea(telegram, idea);
+  const messageId = await postIdea(telegram, ideaToPost);
   await attachTelegramMessage(db, idea.id, messageId);
 
   return NextResponse.json({ ok: true, messageId });

@@ -41,7 +41,7 @@ export async function completeJson<T>(options: CompleteJsonOptions): Promise<T> 
   if (first.stopReason === "max_tokens") {
     const retry = await requestAnthropic({
       ...options,
-      maxTokens: Math.max(options.maxTokens ?? 2000, 8000)
+      maxTokens: Math.max(options.maxTokens ?? 2000, 3000)
     });
     const retryParse = tryParseJsonResponse<T>(retry.text);
 
@@ -56,7 +56,7 @@ export async function completeJson<T>(options: CompleteJsonOptions): Promise<T> 
 }
 
 async function requestAnthropic(options: CompleteJsonOptions): Promise<{ text: string; stopReason?: string }> {
-  const attempts = (options.rateLimitRetries ?? 2) + 1;
+  const attempts = (options.rateLimitRetries ?? 1) + 1;
   let lastRateLimitDetails = "";
 
   for (let attempt = 0; attempt < attempts; attempt += 1) {
@@ -123,7 +123,7 @@ async function repairJson<T>(options: CompleteJsonOptions, invalidJson: string):
         content: `Repair this malformed or truncated JSON into one valid JSON object. Do not add markdown or commentary.\n\n${invalidJson}`
       }
     ],
-    maxTokens: Math.max(options.maxTokens ?? 2000, 8000)
+    maxTokens: Math.max(options.maxTokens ?? 2000, 3000)
   });
   const repaired = tryParseJsonResponse<T>(response.text);
 

@@ -20,7 +20,9 @@ import { createTelegramClient } from "@/lib/telegram/client";
 import { postDigest, postIdea } from "@/lib/telegram/post-idea";
 
 const CHUNK_SIZE = 1;
-const phaseDelayMs = 500;
+const phaseDelayMs = 3000;
+const maxSignalsPerMarket = 2;
+const maxDeepDivesPerRun = 2;
 
 /**
  * Entry point.
@@ -53,7 +55,10 @@ async function runSingleMarket(market: Market): Promise<PipelineSummary> {
     await insertSignals(db, session.id, signals);
     await sleep(phaseDelayMs);
 
-    const rawIdeas = await generateIdeas(env.ANTHROPIC_API_KEY, market, signals);
+    const rawIdeas = await generateIdeas(env.ANTHROPIC_API_KEY, market, signals, {
+      maxSignals: maxSignalsPerMarket,
+      useWebSearch: false
+    });
     await sleep(phaseDelayMs);
 
     const scoredIdeas = await filterAndScoreIdeas(env.ANTHROPIC_API_KEY, rawIdeas);
@@ -74,7 +79,7 @@ async function runSingleMarket(market: Market): Promise<PipelineSummary> {
     });
 
     const survivors = await loadSessionSurvivors(db, session.id);
-    const topFive = survivors.slice(0, 5);
+    const topIdeas = survivors.slice(0, maxDeepDivesPerRun);
 
     const summary: PipelineSummary = {
       sessionId: session.id,
@@ -86,7 +91,7 @@ async function runSingleMarket(market: Market): Promise<PipelineSummary> {
       posted: 0
     };
 
-    await postMergedAnalysis(env.ANTHROPIC_API_KEY, db, topFive, summary);
+    await postMergedAnalysis(env.ANTHROPIC_API_KEY, db, topIdeas, summary);
     await updateScoutSession(db, session.id, { status: "done", survivors: survivors.length });
 
     return summary;
@@ -122,7 +127,10 @@ async function runChunkedPipeline(selfTriggerUrl: string): Promise<PipelineSumma
         await insertSignals(db, session.id, signals);
         await sleep(phaseDelayMs);
 
-        const rawIdeas = await generateIdeas(env.ANTHROPIC_API_KEY, market, signals);
+        const rawIdeas = await generateIdeas(env.ANTHROPIC_API_KEY, market, signals, {
+          maxSignals: maxSignalsPerMarket,
+          useWebSearch: false
+        });
         await sleep(phaseDelayMs);
 
         const scoredIdeas = await filterAndScoreIdeas(env.ANTHROPIC_API_KEY, rawIdeas);
@@ -156,9 +164,21 @@ async function runChunkedPipeline(selfTriggerUrl: string): Promise<PipelineSumma
         );
       } catch (error) {
         console.error(`Market failed: ${market.id}`, error);
+        marketsScanned += 1;
+        await updateScoutSession(db, session.id, {
+          markets_scanned: marketsScanned,
+          ideas_generated: ideasGenerated,
+          ideas_killed_p1: killedPass1,
+          ideas_killed_p2: killedPass2,
+          survivors: survivorsCount
+        });
         await telegram.sendMessage(
           telegramChatId,
-          [`⚠️ Рынок не обработан: ${market.name}`, error instanceof Error ? error.message : "Unknown error"].join("\n")
+          [
+            `⚠️ Рынок не обработан: ${market.name}`,
+            error instanceof Error ? error.message : "Unknown error",
+            `Пропускаю дальше: ${marketsScanned}/${markets.length}`
+          ].join("\n")
         );
       }
     }
@@ -179,7 +199,7 @@ async function runChunkedPipeline(selfTriggerUrl: string): Promise<PipelineSumma
     }
 
     const survivors = await loadSessionSurvivors(db, session.id);
-    const topFive = survivors.slice(0, 5);
+    const topIdeas = survivors.slice(0, maxDeepDivesPerRun);
 
     const summary: PipelineSummary = {
       sessionId: session.id,
@@ -192,7 +212,7 @@ async function runChunkedPipeline(selfTriggerUrl: string): Promise<PipelineSumma
     };
 
     await updateScoutSession(db, session.id, { survivors: survivors.length });
-    await postMergedAnalysis(env.ANTHROPIC_API_KEY, db, topFive, summary);
+    await postMergedAnalysis(env.ANTHROPIC_API_KEY, db, topIdeas, summary);
     await updateScoutSession(db, session.id, {
       status: "done",
       markets_scanned: marketsScanned,
@@ -221,7 +241,7 @@ async function postMergedAnalysis(
 
   for (const idea of topIdeas) {
     try {
-      const deepDive = await deepDiveIdea(apiKey, idea);
+      const deepDive = await deepDiveIdea(apiKey, idea, { useWebSearch: false });
       withDeepDives.push(await attachDeepDive(db, idea.id, deepDive));
       await sleep(phaseDelayMs);
     } catch (error) {

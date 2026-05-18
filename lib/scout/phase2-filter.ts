@@ -3,7 +3,6 @@ import { excludedRegionText, targetRegionText } from "./markets";
 import type { RawIdea, ScoredIdea } from "./types";
 
 const model = "claude-haiku-4-5-20251001";
-const perIdeaDelayMs = 1000;
 
 interface FilterResponse {
   ideas: ScoredIdea[];
@@ -14,17 +13,19 @@ export async function filterAndScoreIdeas(apiKey: string, ideas: RawIdea[]): Pro
     return [];
   }
 
-  const scoredIdeas: ScoredIdea[] = [];
-
-  for (const idea of ideas) {
-    scoredIdeas.push(...(await filterAndScoreIdea(apiKey, idea)));
-    await sleep(perIdeaDelayMs);
-  }
-
-  return scoredIdeas;
+  return filterAndScoreBatch(apiKey, ideas);
 }
 
-async function filterAndScoreIdea(apiKey: string, idea: RawIdea): Promise<ScoredIdea[]> {
+async function filterAndScoreBatch(apiKey: string, ideas: RawIdea[]): Promise<ScoredIdea[]> {
+  const compactIdeas = ideas.map((idea) => ({
+    ...idea,
+    description: clip(idea.description, 180),
+    target_audience: clip(idea.target_audience, 120),
+    monetization: clip(idea.monetization, 120),
+    why_now: clip(idea.why_now, 120),
+    signals_used: idea.signals_used.slice(0, 2).map((signal) => clip(signal, 120))
+  }));
+
   const result = await completeJson<FilterResponse>({
     apiKey,
     model,
@@ -32,7 +33,7 @@ async function filterAndScoreIdea(apiKey: string, idea: RawIdea): Promise<Scored
     messages: [
       {
         role: "user",
-        content: `Apply pass 1 hard-kill criteria and pass 2 scoring to this one idea.
+        content: `Apply pass 1 hard-kill criteria and pass 2 scoring to these ideas. Return exactly one scored object per input idea, preserving order.
 
 Hard-kill only if at least one criterion is clearly true:
 - commoditized and needs $10M+ capex before validation
@@ -43,20 +44,18 @@ Hard-kill only if at least one criterion is clearly true:
 
 Do not kill for normal competition, uncertain TAM, need for partnerships, brand-building, or weak differentiation. Those should reduce scores, not kill the idea. Do not use killed_at_pass=2 in this response; pass 2 is scoring only. Score the idea 0-100 on urgency, timing, advantage, monetization, competition, and MVP speed. total_score is weighted 20/20/15/15/15/15.
 
-Idea:
-${JSON.stringify(idea, null, 2)}
+Ideas:
+${JSON.stringify(compactIdeas, null, 2)}
 
 Schema: {"ideas":[{"market_id":"...","title":"...","description":"...","target_audience":"...","monetization":"...","why_now":"...","signals_used":["..."],"killed_at_pass":1|null,"kill_reason":"... or null","urgency_score":number|null,"timing_score":number|null,"advantage_score":number|null,"monetization_score":number|null,"competition_score":number|null,"mvp_speed_score":number|null,"total_score":number|null}]}`
       }
     ],
-    maxTokens: 1800
+    maxTokens: 2200
   });
 
   return result.ideas;
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms);
-  });
+function clip(value: string, maxLength: number): string {
+  return value.length <= maxLength ? value : `${value.slice(0, maxLength - 1)}...`;
 }

@@ -378,3 +378,13 @@ CRON_SECRET=               # для захисту cron endpoint
 - [x] `/api/dashboard` повертає `cache-control: no-store`, щоб Vercel/browser не кешували стан запусків.
 - [x] Додано auto-cleanup завислих web-сесій: `running` з 0 ринків/0 ідей старші 8 хвилин автоматично переходять у `failed`.
 - [x] Cleanup виконується на dashboard, `/api/dashboard`, `/sessions`, `/sessions/[id]` і перед новим web-запуском.
+## Статус 2026-05-18 / Anthropic rate-limit optimization
+
+Зроблено:
+- [x] Full pipeline тепер бере 2 сигнали на ринок замість пачки з 5+.
+- [x] Phase 1 web-search повертає 4 компактні сигнали і менший token budget.
+- [x] Phase 2 більше не робить web-search на кожен сигнал у full pipeline; використовує web-grounded сигнали з Phase 1.
+- [x] Phase 2 scoring батчиться в один Anthropic-запит на ринок замість окремого запиту на кожну ідею.
+- [x] Deep dive в full pipeline обмежено топ-2 і без повторного web-search, щоб не бити TPM у фінальній фазі.
+- [x] Якщо один ринок впав на 429/іншу помилку, pipeline пропускає його далі, а не повторює той самий ринок нескінченно.
+- [x] Anthropic retry зменшено до 1 повтору, JSON repair більше не просить 8000 output tokens.

@@ -2,7 +2,7 @@ import { completeJson } from "./anthropic";
 import { containsExcludedRegion, excludedRegionText, targetRegionText } from "./markets";
 import type { DeepDive, ScoredIdea } from "./types";
 
-const model = "claude-sonnet-4-6";
+const model = "claude-haiku-4-5-20251001";
 
 interface DeepDiveResponse {
   deep_dive: DeepDive;
@@ -39,7 +39,7 @@ ${JSON.stringify(
         )}\n\nSchema: {"deep_dive":{"analogues":["..."],"entry_bootstrap":"...","entry_vc":"...","entry_lifestyle":"...","main_risks":["..."],"risk_mitigations":["..."],"first_validation_step":"...","team_fit_score":7}}`
       }
     ],
-    maxTokens: useWebSearch ? 3500 : 2200,
+    maxTokens: useWebSearch ? 2200 : 1400,
     tools: useWebSearch ? [{ type: "web_search_20250305", name: "web_search" }] : undefined
   });
 

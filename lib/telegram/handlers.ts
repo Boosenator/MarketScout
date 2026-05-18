@@ -42,9 +42,9 @@ const quickRunOptions: TestRunOptions = {
   useDeepDiveWebSearch: false
 };
 const fullRunOptions: TestRunOptions = {
-  maxSignals: 5,
-  useGenerateWebSearch: true,
-  useDeepDiveWebSearch: true
+  maxSignals: 3,
+  useGenerateWebSearch: false,
+  useDeepDiveWebSearch: false
 };
 
 interface TelegramUser {

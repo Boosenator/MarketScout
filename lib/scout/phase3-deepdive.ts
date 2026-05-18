@@ -5,7 +5,7 @@ import type { DeepDive, ScoredIdea } from "./types";
 const model = "claude-haiku-4-5-20251001";
 
 interface DeepDiveResponse {
-  deep_dive: DeepDive;
+  deep_dive: unknown;
 }
 
 export interface DeepDiveOptions {
@@ -37,16 +37,47 @@ ${JSON.stringify(
           idea,
           null,
           2
-        )}\n\nSchema: {"deep_dive":{"analogues":["..."],"entry_bootstrap":"...","entry_vc":"...","entry_lifestyle":"...","main_risks":["..."],"risk_mitigations":["..."],"first_validation_step":"...","team_fit_score":7}}`
+        )}\n\nReturn compact JSON. IMPORTANT: analogues, main_risks, and risk_mitigations must be arrays of strings, not objects. Schema: {"deep_dive":{"analogues":["Name — what it proves"],"entry_bootstrap":"...","entry_vc":"...","entry_lifestyle":"...","main_risks":["..."],"risk_mitigations":["..."],"first_validation_step":"...","team_fit_score":7}}`
       }
     ],
-    maxTokens: useWebSearch ? 2200 : 1400,
+    maxTokens: useWebSearch ? 2600 : 2200,
     tools: useWebSearch ? [{ type: "web_search_20250305", name: "web_search" }] : undefined
   });
 
+  return normalizeDeepDive(result.deep_dive);
+}
+
+export function createFallbackDeepDive(idea: ScoredIdea): DeepDive {
   return sanitizeDeepDive({
-    ...result.deep_dive,
-    team_fit_score: normalizeTeamFitScore(result.deep_dive.team_fit_score)
+    analogues: [
+      `Похожие решения из signal/context: ${safeText(idea.signals_used?.slice(0, 2).join("; "), "требуется ручная проверка аналогов")}`
+    ],
+    entry_bootstrap:
+      "Начать как консьерж-сервис: вручную выполнить обещанную работу для 3-5 клиентов и проверить готовность платить до разработки продукта.",
+    entry_vc:
+      "VC-вариант имеет смысл только после доказанного повторяемого спроса, платных пилотов и понятного канала привлечения.",
+    entry_lifestyle:
+      "Lifestyle-вариант: узкая услуга/микро-SaaS для одной ниши с оплатой за месяц или за выполненную операцию.",
+    main_risks: ["Главный риск: боль может быть недостаточно частой или платёжеспособной; это нужно проверить до разработки."],
+    risk_mitigations: ["Провести интервью, лендинг и предоплату/LOI; не строить продукт до 3-5 платных подтверждений."],
+    first_validation_step:
+      "За 7-14 дней провести 15 интервью с целевой аудиторией, собрать 3 платных предзаказа или LOI и вручную выполнить первый кейс.",
+    team_fit_score: 5
+  });
+}
+
+function normalizeDeepDive(value: unknown): DeepDive {
+  const record = isRecord(value) ? value : {};
+
+  return sanitizeDeepDive({
+    analogues: toStringArray(record.analogues),
+    entry_bootstrap: safeText(record.entry_bootstrap, ""),
+    entry_vc: safeText(record.entry_vc, ""),
+    entry_lifestyle: safeText(record.entry_lifestyle, ""),
+    main_risks: toStringArray(record.main_risks),
+    risk_mitigations: toStringArray(record.risk_mitigations),
+    first_validation_step: safeText(record.first_validation_step, ""),
+    team_fit_score: normalizeTeamFitScore(typeof record.team_fit_score === "number" ? record.team_fit_score : 5)
   });
 }
 
@@ -94,6 +125,37 @@ function sanitizeText(value: string): string {
   }
 
   return "Требуется перепроверка для целевой географии: Украина, Европа, США.";
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function toStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return typeof value === "string" && value.trim() ? [value] : [];
+  }
+
+  return value
+    .map((item) => {
+      if (typeof item === "string") {
+        return item;
+      }
+
+      if (isRecord(item)) {
+        const name = safeText(item.name, "");
+        const proves = safeText(item.what_it_proves ?? item.proves ?? item.description, "");
+        const geography = safeText(item.geography, "");
+        return [name, geography, proves].filter(Boolean).join(" — ");
+      }
+
+      return "";
+    })
+    .filter((item) => item.trim().length > 0);
+}
+
+function safeText(value: unknown, fallback: string): string {
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : fallback;
 }
 
 function nonEmpty(values: string[], fallback: string): string[] {

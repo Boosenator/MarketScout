@@ -409,3 +409,10 @@ CRON_SECRET=               # для захисту cron endpoint
 - [x] Додано blacklist для grant-dependent та government-procurement-first ідей.
 - [x] Phase 1/2 prompts тепер явно шукають civilian commercial opportunities і відсікають ці теми.
 - [x] Runtime-фільтр і scoring примусово вбивають ідеї з виключених opportunity types, навіть якщо модель їх згенерувала.
+## Статус 2026-05-18 / deep dive JSON hardening
+
+Зроблено:
+- [x] Deep dive parser тепер нормалізує `unknown` JSON, а не довіряє моделі.
+- [x] Якщо Anthropic повертає `analogues` як об'єкти, вони конвертуються в короткі рядки.
+- [x] Deep dive max tokens збільшено для ручного web-posting, щоб менше ловити truncated JSON.
+- [x] `/api/ideas/[id]/post` більше не падає 500, якщо Anthropic deep dive зламався: зберігає fallback deep dive і постить ідею.

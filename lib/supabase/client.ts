@@ -8,6 +8,9 @@ export function createSupabaseAdmin() {
     auth: {
       persistSession: false,
       autoRefreshToken: false
+    },
+    global: {
+      fetch: (url, options = {}) => fetch(url, { ...options, cache: "no-store" })
     }
   });
 }

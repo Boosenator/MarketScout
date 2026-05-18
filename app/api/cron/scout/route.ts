@@ -15,7 +15,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
 
-  const summary = await runScoutPipeline();
+  // Pass own URL so the pipeline can self-trigger the next chunk
+  const selfTriggerUrl = `${request.nextUrl.origin}/api/cron/scout`;
+  const summary = await runScoutPipeline(selfTriggerUrl);
 
   return NextResponse.json({ ok: true, summary });
 }

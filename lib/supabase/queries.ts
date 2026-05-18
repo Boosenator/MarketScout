@@ -171,6 +171,111 @@ export async function listAnalyzedIdeas(db: Db, limit = 20): Promise<IdeaRecord[
   return data as IdeaRecord[];
 }
 
+export async function getLatestSession(db: Db): Promise<ScoutSession | null> {
+  const { data, error } = await db
+    .from("scout_sessions")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data as ScoutSession | null;
+}
+
+// Returns a running session started within the last 2 hours (avoids resuming stuck sessions from a previous day)
+export async function findRunningSession(db: Db): Promise<ScoutSession | null> {
+  const cutoff = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+
+  const { data, error } = await db
+    .from("scout_sessions")
+    .select("*")
+    .eq("status", "running")
+    .gte("created_at", cutoff)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data as ScoutSession | null;
+}
+
+export async function loadSessionSurvivors(db: Db, sessionId: string): Promise<IdeaRecord[]> {
+  const { data, error } = await db
+    .from("scout_ideas")
+    .select("*")
+    .eq("session_id", sessionId)
+    .is("killed_at_pass", null)
+    .gte("total_score", 65)
+    .order("total_score", { ascending: false });
+
+  if (error) {
+    throw error;
+  }
+
+  return data as IdeaRecord[];
+}
+
+export interface TotalStats {
+  sessionCount: number;
+  ideaCount: number;
+  survivorCount: number;
+  deepDiveCount: number;
+}
+
+export async function getTotalStats(db: Db): Promise<TotalStats> {
+  const [sessionRes, ideaRes, survivorRes, deepDiveRes] = await Promise.all([
+    db.from("scout_sessions").select("*", { count: "exact", head: true }),
+    db.from("scout_ideas").select("*", { count: "exact", head: true }),
+    db.from("scout_ideas").select("*", { count: "exact", head: true }).is("killed_at_pass", null),
+    db.from("scout_ideas").select("*", { count: "exact", head: true }).not("deep_dive", "is", null)
+  ]);
+
+  return {
+    sessionCount: sessionRes.count ?? 0,
+    ideaCount: ideaRes.count ?? 0,
+    survivorCount: survivorRes.count ?? 0,
+    deepDiveCount: deepDiveRes.count ?? 0
+  };
+}
+
+export async function getVoteCountsForIdeas(
+  db: Db,
+  ideaIds: string[]
+): Promise<Map<string, Record<"fire" | "maybe" | "skip", number>>> {
+  const map = new Map<string, Record<"fire" | "maybe" | "skip", number>>();
+
+  if (ideaIds.length === 0) {
+    return map;
+  }
+
+  for (const id of ideaIds) {
+    map.set(id, { fire: 0, maybe: 0, skip: 0 });
+  }
+
+  const { data, error } = await db.from("idea_votes").select("idea_id, vote").in("idea_id", ideaIds);
+
+  if (error) {
+    throw error;
+  }
+
+  for (const row of data ?? []) {
+    const counts = map.get(row.idea_id as string);
+
+    if (counts && (row.vote === "fire" || row.vote === "maybe" || row.vote === "skip")) {
+      counts[row.vote as "fire" | "maybe" | "skip"]++;
+    }
+  }
+
+  return map;
+}
+
 export async function claimTelegramUpdate(
   db: Db,
   updateId: number,

@@ -8,20 +8,34 @@ import {
   summarizePhase3,
   type TestRunOptions
 } from "@/lib/scout/test-runner";
+import { getCronEnv } from "@/lib/config";
 import { createSupabaseAdmin } from "@/lib/supabase/client";
 import {
   claimTelegramUpdate,
   finishTelegramUpdate,
   getIdea,
+  getLatestSession,
   getVoteCounts,
   upsertVote
 } from "@/lib/supabase/queries";
 import { createTelegramClient, type TelegramClient } from "./client";
-import { editMainMenu, sendMainMenu, showHelpMenu, showResultsPage, showTestsMenu } from "./menu";
+import {
+  editMainMenu,
+  sendMainMenu,
+  sendStatusMessage,
+  showHelpMenu,
+  showResultsPage,
+  showRunConfirmPage,
+  showStatusPage,
+  showTestsMenu,
+  showTopVotedPage
+} from "./menu";
 import { updateIdeaKeyboard } from "./post-idea";
 
 const votePattern = /^vote_(fire|maybe|skip)_(.+)$/;
 const resultsPattern = /^menu_results_(\d+)$/;
+const topPattern = /^menu_top_(\d+)$/;
+
 const quickRunOptions: TestRunOptions = {
   maxSignals: 2,
   useGenerateWebSearch: false,
@@ -121,7 +135,17 @@ async function handleCommand(telegram: TelegramClient, message: TelegramIncoming
   }
 
   if (command.name === "markets") {
-    await telegram.sendMessage(message.chat.id, `Доступные рынки:\n${marketListText()}`);
+    await telegram.sendMessage(message.chat.id, `Доступні ринки:\n${marketListText()}`);
+    return;
+  }
+
+  if (command.name === "status") {
+    await sendStatusMessage(telegram, message.chat.id);
+    return;
+  }
+
+  if (command.name === "run") {
+    await handleRunCommand(telegram, message.chat.id);
     return;
   }
 
@@ -145,7 +169,7 @@ async function handleCallback(telegram: TelegramClient, callbackQuery: TelegramC
   const message = callbackQuery.message;
 
   if (!message) {
-    await telegram.answerCallbackQuery(callbackQuery.id, "Нет сообщения для обновления");
+    await telegram.answerCallbackQuery(callbackQuery.id, "Немає повідомлення для оновлення");
     return;
   }
 
@@ -153,7 +177,15 @@ async function handleCallback(telegram: TelegramClient, callbackQuery: TelegramC
 
   if (resultsMatch) {
     await showResultsPage(telegram, message.chat.id, message.message_id, Number(resultsMatch[1]));
-    await telegram.answerCallbackQuery(callbackQuery.id, "Открываю результаты");
+    await telegram.answerCallbackQuery(callbackQuery.id, "Відкриваю результати");
+    return;
+  }
+
+  const topMatch = data.match(topPattern);
+
+  if (topMatch) {
+    await showTopVotedPage(telegram, message.chat.id, message.message_id, Number(topMatch[1]));
+    await telegram.answerCallbackQuery(callbackQuery.id, "Топ по голосах");
     return;
   }
 
@@ -163,25 +195,57 @@ async function handleCallback(telegram: TelegramClient, callbackQuery: TelegramC
     return;
   }
 
+  if (data === "menu_status") {
+    await showStatusPage(telegram, message.chat.id, message.message_id);
+    await telegram.answerCallbackQuery(callbackQuery.id, "Статус");
+    return;
+  }
+
+  if (data === "menu_run") {
+    await showRunConfirmPage(telegram, message.chat.id, message.message_id);
+    await telegram.answerCallbackQuery(callbackQuery.id, "Запуск аналізу");
+    return;
+  }
+
+  if (data === "menu_run_confirm") {
+    await telegram.answerCallbackQuery(callbackQuery.id, "Запуск розпочато ✓");
+    await telegram.editMessageText(
+      message.chat.id,
+      message.message_id,
+      [
+        "▶️ *Аналіз запущено\\!*",
+        "",
+        "Сканую 12 ринків, генерую ідеї, роблю deep dive\\.",
+        "Результати з'являться у каналі команди через ~5\\-10 хвилин\\."
+      ].join("\n"),
+      {
+        parse_mode: "Markdown",
+        reply_markup: { inline_keyboard: [[{ text: "🏠 Головне меню", callback_data: "menu_main" }]] }
+      }
+    );
+    void triggerPipeline();
+    return;
+  }
+
   if (data === "menu_tests") {
     await showTestsMenu(telegram, message.chat.id, message.message_id);
-    await telegram.answerCallbackQuery(callbackQuery.id, "Тесты");
+    await telegram.answerCallbackQuery(callbackQuery.id, "Тести");
     return;
   }
 
   if (data === "menu_markets") {
-    await telegram.editMessageText(message.chat.id, message.message_id, `Доступные рынки:\n${marketListText()}`, {
+    await telegram.editMessageText(message.chat.id, message.message_id, `Доступні ринки:\n${marketListText()}`, {
       reply_markup: {
-        inline_keyboard: [[{ text: "⬅️ Главное меню", callback_data: "menu_main" }]]
+        inline_keyboard: [[{ text: "⬅️ Головне меню", callback_data: "menu_main" }]]
       }
     });
-    await telegram.answerCallbackQuery(callbackQuery.id, "Рынки");
+    await telegram.answerCallbackQuery(callbackQuery.id, "Ринки");
     return;
   }
 
   if (data === "menu_help") {
     await showHelpMenu(telegram, message.chat.id, message.message_id);
-    await telegram.answerCallbackQuery(callbackQuery.id, "Помощь");
+    await telegram.answerCallbackQuery(callbackQuery.id, "Допомога");
     return;
   }
 
@@ -190,7 +254,32 @@ async function handleCallback(telegram: TelegramClient, callbackQuery: TelegramC
     return;
   }
 
-  await telegram.answerCallbackQuery(callbackQuery.id, "Неизвестное действие");
+  await telegram.answerCallbackQuery(callbackQuery.id, "Невідома дія");
+}
+
+async function handleRunCommand(telegram: TelegramClient, chatId: number): Promise<void> {
+  const db = createSupabaseAdmin();
+  const session = await getLatestSession(db);
+
+  if (session?.status === "running") {
+    await telegram.sendMessage(
+      chatId,
+      `⚠️ Аналіз вже виконується. Сесія від ${session.date} зараз у статусі running.`
+    );
+    return;
+  }
+
+  await telegram.sendMessage(
+    chatId,
+    [
+      "▶️ *Аналіз запущено\\!*",
+      "",
+      "Сканую 12 ринків, генерую ідеї, роблю deep dive\\.",
+      "Результати з'являться у каналі команди через ~5\\-10 хвилин\\."
+    ].join("\n"),
+    { parse_mode: "Markdown" }
+  );
+  void triggerPipeline();
 }
 
 async function runMarketCommand(
@@ -205,8 +294,8 @@ async function runMarketCommand(
     return;
   }
 
-  const mode = command === "fullmarket" ? "полный" : "быстрый";
-  await telegram.sendMessage(chatId, `Запускаю ${mode} анализ для рынка ${marketId}. Это может занять пару минут.`);
+  const mode = command === "fullmarket" ? "повний" : "швидкий";
+  await telegram.sendMessage(chatId, `Запускаю ${mode} аналіз для ринку ${marketId}. Це може зайняти пару хвилин.`);
 
   try {
     if (command === "phase1") {
@@ -227,7 +316,7 @@ async function runMarketCommand(
     );
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    await telegram.sendMessage(chatId, `Тест упал: ${errorMessage}`);
+    await telegram.sendMessage(chatId, `Тест впав: ${errorMessage}`);
   }
 }
 
@@ -257,7 +346,23 @@ async function handleVote(telegram: TelegramClient, callbackQuery: TelegramCallb
     await updateIdeaKeyboard(telegram, message.chat.id, idea.telegram_message_id, ideaId, counts);
   }
 
-  await telegram.answerCallbackQuery(callbackQuery.id, "Голос принят");
+  await telegram.answerCallbackQuery(callbackQuery.id, "Голос прийнято ✓");
+}
+
+function triggerPipeline(): Promise<void> {
+  const { CRON_SECRET } = getCronEnv();
+  const siteUrl = process.env.SITE_URL;
+  const vercelUrl = process.env.VERCEL_URL;
+  const baseUrl = siteUrl ?? (vercelUrl ? `https://${vercelUrl}` : "http://localhost:3000");
+
+  return fetch(`${baseUrl}/api/cron/scout`, {
+    method: "GET",
+    headers: { "x-cron-secret": CRON_SECRET }
+  })
+    .then(() => undefined)
+    .catch((error: unknown) => {
+      console.error("Pipeline trigger failed", error);
+    });
 }
 
 function parseCommand(text: string): { name: string; argument: string | null } | null {

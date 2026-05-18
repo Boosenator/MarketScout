@@ -337,3 +337,26 @@ CRON_SECRET=               # для захисту cron endpoint
 - [x] Додано `/fullmarket <market_id>` для повного web-grounded аналізу.
 - [x] Меню тестів оновлено: показує quick/full сценарії.
 - [x] Це прибирає накопичення retry-пауз і зменшує ризик Vercel 300s timeout.
+## Статус 2026-05-18 / full bot management
+
+Зроблено:
+- [x] Нові DB-запити: `getLatestSession`, `getTotalStats`, `getVoteCountsForIdeas` (batch).
+- [x] Головне меню переробили: додали "▶️ Запустити аналіз" і "📈 Статус".
+- [x] Нова сторінка "📊 Результати" — тепер показує vote counts для кожної ідеї.
+- [x] Нова сторінка "🔥 Топ по голосах" — ідеї відсортовані по 🔥 з пагінацією.
+- [x] Нова сторінка "📈 Статус" — остання сесія + загальна статистика.
+- [x] Нова сторінка підтвердження запуску — перевіряє чи вже running, показує підтвердження.
+- [x] Запуск pipeline через кнопку/команду — fire-and-forget HTTP до `/api/cron/scout`.
+- [x] Нова команда `/run` — запускає повний pipeline (з перевіркою duplicate run).
+- [x] Нова команда `/status` — показує статус останньої сесії.
+- [x] URL для trigger: `SITE_URL` env або `VERCEL_URL` auto або `localhost:3000` fallback.
+## Статус 2026-05-18 / chunked pipeline
+
+Зроблено:
+- [x] Pipeline розбитий на чанки по 4 ринки за invocation (замість 12 за раз).
+- [x] Кожен виклик `/api/cron/scout` обробляє наступний чанк і self-trigger-ить наступний виклик.
+- [x] Resume: якщо є `running` сесія молодша 2 годин — продовжує з `markets_scanned`.
+- [x] Counters (markets_scanned, ideas_generated, killed, survivors) накопичуються між чанками через DB.
+- [x] Після всіх 12 ринків — завантажує survivors з DB (score ≥ 65), робить deep dive топ-5, постить.
+- [x] `selfTriggerUrl` береться з `request.nextUrl.origin` у route.ts (без env-залежності).
+- [x] Нові DB-запити: `findRunningSession` (2h cutoff), `loadSessionSurvivors` (sorted by score).

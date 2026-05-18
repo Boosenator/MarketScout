@@ -1,43 +1,63 @@
+import { getMarketName } from "@/lib/scout/markets";
+import type { IdeaRecord, ScoutSession } from "@/lib/scout/types";
 import { createSupabaseAdmin } from "@/lib/supabase/client";
-import { listAnalyzedIdeas } from "@/lib/supabase/queries";
+import {
+  getLatestSession,
+  getTotalStats,
+  getVoteCountsForIdeas,
+  listAnalyzedIdeas,
+  type TotalStats
+} from "@/lib/supabase/queries";
 import type { InlineKeyboardMarkup, TelegramClient } from "./client";
 import { formatIdeaPost } from "./post-idea";
 
 const pageSize = 1;
-const maxIdeas = 20;
+const maxIdeas = 30;
+
+// ─── Main Menu ─────────────────────────────────────────────────────────────
 
 export function mainMenuText(): string {
   return [
-    "Главное меню MarketScout",
+    "🤖 *MarketScout*",
     "",
-    "Выбери действие кнопками ниже.",
-    "",
-    "Команды:",
-    "/markets - список рынков",
-    "/testmarket <market_id> - тест полного анализа"
+    "AI\\-система щоденного сканування 12 ринків\\.",
+    "Вибери дію:"
   ].join("\n");
 }
 
 export function mainMenuKeyboard(): InlineKeyboardMarkup {
   return {
     inline_keyboard: [
-      [{ text: "📊 Результаты анализа", callback_data: "menu_results_0" }],
+      [{ text: "📊 Результати аналізу", callback_data: "menu_results_0" }],
+      [{ text: "🔥 Топ по голосах", callback_data: "menu_top_0" }],
       [
-        { text: "🧪 Тест рынков", callback_data: "menu_tests" },
-        { text: "🗂 Рынки", callback_data: "menu_markets" }
+        { text: "▶️ Запустити аналіз", callback_data: "menu_run" },
+        { text: "📈 Статус", callback_data: "menu_status" }
       ],
-      [{ text: "ℹ️ Помощь", callback_data: "menu_help" }]
+      [
+        { text: "🗂 Ринки", callback_data: "menu_markets" },
+        { text: "🧪 Тести", callback_data: "menu_tests" }
+      ],
+      [{ text: "ℹ️ Допомога", callback_data: "menu_help" }]
     ]
   };
 }
 
 export async function sendMainMenu(telegram: TelegramClient, chatId: number): Promise<void> {
-  await telegram.sendMessage(chatId, mainMenuText(), { reply_markup: mainMenuKeyboard() });
+  await telegram.sendMessage(chatId, mainMenuText(), {
+    parse_mode: "Markdown",
+    reply_markup: mainMenuKeyboard()
+  });
 }
 
 export async function editMainMenu(telegram: TelegramClient, chatId: number, messageId: number): Promise<void> {
-  await telegram.editMessageText(chatId, messageId, mainMenuText(), { reply_markup: mainMenuKeyboard() });
+  await telegram.editMessageText(chatId, messageId, mainMenuText(), {
+    parse_mode: "Markdown",
+    reply_markup: mainMenuKeyboard()
+  });
 }
+
+// ─── Results (analyzed ideas with votes) ───────────────────────────────────
 
 export async function showResultsPage(
   telegram: TelegramClient,
@@ -49,80 +69,260 @@ export async function showResultsPage(
   const ideas = await listAnalyzedIdeas(db, maxIdeas);
 
   if (ideas.length === 0) {
-    await telegram.editMessageText(chatId, messageId, "Пока нет готовых deep dive результатов.", {
+    await telegram.editMessageText(chatId, messageId, "Поки немає готових deep dive результатів\\.", {
+      parse_mode: "Markdown",
       reply_markup: backKeyboard()
     });
     return;
   }
 
-  const normalizedPage = clamp(page, 0, Math.ceil(ideas.length / pageSize) - 1);
+  const normalizedPage = clamp(page, 0, ideas.length - 1);
   const idea = ideas[normalizedPage];
-  const text = [`${normalizedPage + 1}/${ideas.length}`, "", formatIdeaPost(idea)].join("\n");
+  const votesMap = await getVoteCountsForIdeas(db, [idea.id]);
+  const votes = votesMap.get(idea.id) ?? { fire: 0, maybe: 0, skip: 0 };
+
+  const header = `${normalizedPage + 1}/${ideas.length} · ${getMarketName(idea.market_id)}`;
+  const voteBar = `🔥 ${votes.fire} · 🤔 ${votes.maybe} · 👎 ${votes.skip}`;
+  const text = [header, "", formatIdeaPost(idea), "", voteBar].join("\n");
 
   await telegram.editMessageText(chatId, messageId, text, {
     parse_mode: "Markdown",
-    reply_markup: resultsKeyboard(normalizedPage, ideas.length)
+    reply_markup: resultsNavKeyboard(normalizedPage, ideas.length)
   });
 }
+
+// ─── Top Voted ─────────────────────────────────────────────────────────────
+
+export async function showTopVotedPage(
+  telegram: TelegramClient,
+  chatId: number,
+  messageId: number,
+  page: number
+): Promise<void> {
+  const db = createSupabaseAdmin();
+  const ideas = await listAnalyzedIdeas(db, maxIdeas);
+
+  if (ideas.length === 0) {
+    await telegram.editMessageText(chatId, messageId, "Поки немає результатів для голосування\\.", {
+      parse_mode: "Markdown",
+      reply_markup: backKeyboard()
+    });
+    return;
+  }
+
+  const allIds = ideas.map((i) => i.id);
+  const votesMap = await getVoteCountsForIdeas(db, allIds);
+
+  const sorted = [...ideas].sort((a, b) => {
+    const aFire = votesMap.get(a.id)?.fire ?? 0;
+    const bFire = votesMap.get(b.id)?.fire ?? 0;
+    return bFire - aFire;
+  });
+
+  const normalizedPage = clamp(page, 0, sorted.length - 1);
+  const idea = sorted[normalizedPage];
+  const votes = votesMap.get(idea.id) ?? { fire: 0, maybe: 0, skip: 0 };
+
+  const header = `🔥 Топ по голосах · ${normalizedPage + 1}/${sorted.length}`;
+  const voteBar = `🔥 ${votes.fire} · 🤔 ${votes.maybe} · 👎 ${votes.skip}`;
+  const text = [header, "", formatIdeaPost(idea), "", voteBar].join("\n");
+
+  await telegram.editMessageText(chatId, messageId, text, {
+    parse_mode: "Markdown",
+    reply_markup: topVotedNavKeyboard(normalizedPage, sorted.length)
+  });
+}
+
+// ─── Status ────────────────────────────────────────────────────────────────
+
+export async function showStatusPage(
+  telegram: TelegramClient,
+  chatId: number,
+  messageId: number
+): Promise<void> {
+  const db = createSupabaseAdmin();
+  const [session, stats] = await Promise.all([getLatestSession(db), getTotalStats(db)]);
+
+  const text = buildStatusText(session, stats);
+
+  await telegram.editMessageText(chatId, messageId, text, {
+    parse_mode: "Markdown",
+    reply_markup: backKeyboard()
+  });
+}
+
+export function buildStatusText(session: ScoutSession | null, stats: TotalStats): string {
+  const lines: string[] = ["📈 *Статус MarketScout*", ""];
+
+  if (!session) {
+    lines.push("Сесій ще не було\\. Запустіть аналіз\\.");
+  } else {
+    const statusEmoji = session.status === "running" ? "🔄" : session.status === "done" ? "✅" : "❌";
+    const statusLabel = session.status === "running" ? "Виконується" : session.status === "done" ? "Завершено" : "Помилка";
+
+    lines.push(`*Остання сесія* · ${escapeMarkdown(session.date)}`);
+    lines.push(`${statusEmoji} Статус: ${statusLabel}`);
+    lines.push(`🌍 Ринків проскановано: ${session.markets_scanned}`);
+    lines.push(`💡 Ідей згенеровано: ${session.ideas_generated}`);
+    lines.push(`❌ Відсіяно: ${(session.ideas_killed_p1 ?? 0) + (session.ideas_killed_p2 ?? 0)}`);
+    lines.push(`✨ Вижило: ${session.survivors}`);
+  }
+
+  lines.push("");
+  lines.push("*Загалом за весь час:*");
+  lines.push(`📅 Сесій: ${stats.sessionCount}`);
+  lines.push(`💡 Ідей: ${stats.ideaCount}`);
+  lines.push(`🏆 Deep dive: ${stats.deepDiveCount}`);
+
+  return lines.join("\n");
+}
+
+// ─── Run Confirm ───────────────────────────────────────────────────────────
+
+export async function showRunConfirmPage(
+  telegram: TelegramClient,
+  chatId: number,
+  messageId: number
+): Promise<void> {
+  const db = createSupabaseAdmin();
+  const session = await getLatestSession(db);
+
+  if (session?.status === "running") {
+    await telegram.editMessageText(
+      chatId,
+      messageId,
+      [
+        "⚠️ *Аналіз вже виконується*",
+        "",
+        `Сесія від ${escapeMarkdown(session.date)} зараз у статусі _running_\\.`,
+        "Зачекай поки вона завершиться\\."
+      ].join("\n"),
+      { parse_mode: "Markdown", reply_markup: backKeyboard() }
+    );
+    return;
+  }
+
+  await telegram.editMessageText(
+    chatId,
+    messageId,
+    [
+      "▶️ *Запустити повний аналіз?*",
+      "",
+      "Буде проскановано всі 12 ринків, згенеровано ідеї,",
+      "відфільтровано kill criteria, зроблено deep dive топ\\-5,",
+      "результати з'являться у каналі команди\\.",
+      "",
+      "⏱ Займає ~5\\-10 хвилин\\."
+    ].join("\n"),
+    {
+      parse_mode: "Markdown",
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: "✅ Так, запустити", callback_data: "menu_run_confirm" },
+            { text: "❌ Скасувати", callback_data: "menu_main" }
+          ]
+        ]
+      }
+    }
+  );
+}
+
+// ─── Tests ─────────────────────────────────────────────────────────────────
 
 export async function showTestsMenu(telegram: TelegramClient, chatId: number, messageId: number): Promise<void> {
   await telegram.editMessageText(
     chatId,
     messageId,
     [
-      "Тесты рынков",
+      "🧪 *Тести ринків*",
       "",
-      "Запусти команду в чате:",
-      "/phase1 beauty",
-      "/phase2 beauty",
-      "/phase3 beauty",
-      "/testmarket beauty — быстрый режим",
-      "/fullmarket beauty — полный web-grounded режим"
+      "Запусти команду в чаті:",
+      "`/testmarket beauty` — швидкий режим \\(2 сигнали\\)",
+      "`/fullmarket beauty` — повний web\\-grounded режим",
+      "",
+      "Або по фазах:",
+      "`/phase1 beauty` — тільки пошук сигналів",
+      "`/phase2 beauty` — генерація + фільтрація",
+      "`/phase3 beauty` — deep dive"
     ].join("\n"),
-    { reply_markup: backKeyboard() }
+    { parse_mode: "Markdown", reply_markup: backKeyboard() }
   );
 }
+
+// ─── Help ──────────────────────────────────────────────────────────────────
 
 export async function showHelpMenu(telegram: TelegramClient, chatId: number, messageId: number): Promise<void> {
   await telegram.editMessageText(
     chatId,
     messageId,
     [
-      "Помощь",
+      "ℹ️ *Допомога*",
       "",
-      "Бот умеет запускать тесты фаз и листать готовые результаты анализа.",
+      "*Команди:*",
+      "/start, /menu — головне меню",
+      "/run — запустити повний аналіз",
+      "/status — статус останньої сесії",
+      "/markets — список ринків",
+      "/testmarket \\<id\\> — швидкий тест ринку",
+      "/fullmarket \\<id\\> — повний аналіз ринку",
       "",
-      "Лучший рабочий поток:",
-      "1. /testmarket <market_id> для быстрой проверки",
-      "2. /fullmarket <market_id> для полного анализа",
-      "3. Открыть «Результаты анализа»",
-      "4. Листать вперед/назад"
+      "*Кнопки голосування:*",
+      "🔥 Годнота / 🤔 Може бути / 👎 Скіп",
+      "Один голос на людину\\, можна перевибрати\\."
     ].join("\n"),
-    { reply_markup: backKeyboard() }
+    { parse_mode: "Markdown", reply_markup: backKeyboard() }
   );
 }
 
+// ─── Keyboards ─────────────────────────────────────────────────────────────
+
 export function backKeyboard(): InlineKeyboardMarkup {
   return {
-    inline_keyboard: [[{ text: "⬅️ Главное меню", callback_data: "menu_main" }]]
+    inline_keyboard: [[{ text: "⬅️ Головне меню", callback_data: "menu_main" }]]
   };
 }
 
-function resultsKeyboard(page: number, total: number): InlineKeyboardMarkup {
-  const lastPage = Math.max(0, total - 1);
-
+function resultsNavKeyboard(page: number, total: number): InlineKeyboardMarkup {
+  const last = Math.max(0, total - 1);
   return {
     inline_keyboard: [
       [
         { text: "⬅️", callback_data: `menu_results_${Math.max(0, page - 1)}` },
         { text: `${page + 1}/${total}`, callback_data: `menu_results_${page}` },
-        { text: "➡️", callback_data: `menu_results_${Math.min(lastPage, page + 1)}` }
+        { text: "➡️", callback_data: `menu_results_${Math.min(last, page + 1)}` }
       ],
-      [{ text: "🏠 Главное меню", callback_data: "menu_main" }]
+      [{ text: "🏠 Головне меню", callback_data: "menu_main" }]
     ]
   };
 }
 
+function topVotedNavKeyboard(page: number, total: number): InlineKeyboardMarkup {
+  const last = Math.max(0, total - 1);
+  return {
+    inline_keyboard: [
+      [
+        { text: "⬅️", callback_data: `menu_top_${Math.max(0, page - 1)}` },
+        { text: `${page + 1}/${total}`, callback_data: `menu_top_${page}` },
+        { text: "➡️", callback_data: `menu_top_${Math.min(last, page + 1)}` }
+      ],
+      [{ text: "🏠 Головне меню", callback_data: "menu_main" }]
+    ]
+  };
+}
+
+// ─── Utils ─────────────────────────────────────────────────────────────────
+
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
+}
+
+function escapeMarkdown(value: string): string {
+  return value.replace(/([_*[\]()~`>#+\-=|{}.!])/g, "\\$1");
+}
+
+export async function sendStatusMessage(telegram: TelegramClient, chatId: number): Promise<void> {
+  const db = createSupabaseAdmin();
+  const [session, stats] = await Promise.all([getLatestSession(db), getTotalStats(db)]);
+  await telegram.sendMessage(chatId, buildStatusText(session, stats), { parse_mode: "Markdown" });
 }

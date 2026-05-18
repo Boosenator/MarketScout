@@ -28,5 +28,9 @@ export async function GET(): Promise<NextResponse> {
       votes: votesMap.get(idea.id) ?? { fire: 0, maybe: 0, skip: 0 }
     })),
     generatedAt: new Date().toISOString()
+  }, {
+    headers: {
+      "cache-control": "no-store, max-age=0"
+    }
   });
 }

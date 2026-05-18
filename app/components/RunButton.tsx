@@ -11,9 +11,10 @@ type State = "idle" | "loading" | "started" | "error";
 
 interface Props {
   markets: MarketOption[];
+  onStarted?: () => void;
 }
 
-export default function RunButton({ markets }: Props) {
+export default function RunButton({ markets, onStarted }: Props) {
   const [state, setState] = useState<State>("idle");
   const [marketId, setMarketId] = useState("");
 
@@ -37,6 +38,7 @@ export default function RunButton({ markets }: Props) {
       }
 
       setState("started");
+      onStarted?.();
       setTimeout(() => setState("idle"), 6000);
     } catch {
       setState("error");

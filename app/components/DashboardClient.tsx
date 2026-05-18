@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { IdeaRecord, ScoutSession } from "@/lib/scout/types";
 import type { TotalStats } from "@/lib/supabase/queries";
 import IdeaCard from "./IdeaCard";
@@ -29,42 +29,50 @@ export default function DashboardClient({ initialData, markets }: Props) {
   const [data, setData] = useState(initialData);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pendingRun, setPendingRun] = useState(false);
 
   const hasRunningSession = useMemo(() => data.sessions.some((session) => session.status === "running"), [data.sessions]);
+  const fastPolling = hasRunningSession || pendingRun;
+
+  const refreshDashboard = useCallback(async () => {
+    try {
+      setRefreshing(true);
+      const res = await fetch("/api/dashboard", { cache: "no-store" });
+
+      if (!res.ok) {
+        throw new Error(`Dashboard refresh failed: ${res.status}`);
+      }
+
+      const nextData = (await res.json()) as DashboardData;
+      const nextHasRunningSession = nextData.sessions.some((session) => session.status === "running");
+
+      setData(nextData);
+      setError(null);
+
+      if (nextHasRunningSession) {
+        setPendingRun(false);
+      }
+    } catch (err) {
+      console.error(err);
+      setError("Не вдалося оновити дані");
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
 
     async function refresh() {
-      try {
-        setRefreshing(true);
-        const res = await fetch("/api/dashboard", { cache: "no-store" });
+      await refreshDashboard();
 
-        if (!res.ok) {
-          throw new Error(`Dashboard refresh failed: ${res.status}`);
-        }
-
-        const nextData = (await res.json()) as DashboardData;
-
-        if (!cancelled) {
-          setData(nextData);
-          setError(null);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          console.error(err);
-          setError("Не вдалося оновити дані");
-        }
-      } finally {
-        if (!cancelled) {
-          setRefreshing(false);
-          timer = setTimeout(refresh, hasRunningSession ? 3000 : 12000);
-        }
+      if (!cancelled) {
+        timer = setTimeout(refresh, fastPolling ? 3000 : 12000);
       }
     }
 
-    timer = setTimeout(refresh, hasRunningSession ? 1500 : 12000);
+    timer = setTimeout(refresh, fastPolling ? 1500 : 12000);
 
     return () => {
       cancelled = true;
@@ -72,7 +80,22 @@ export default function DashboardClient({ initialData, markets }: Props) {
         clearTimeout(timer);
       }
     };
-  }, [hasRunningSession]);
+  }, [fastPolling, refreshDashboard]);
+
+  useEffect(() => {
+    if (!pendingRun) {
+      return;
+    }
+
+    const timer = setTimeout(() => setPendingRun(false), 60000);
+
+    return () => clearTimeout(timer);
+  }, [pendingRun]);
+
+  function handleRunStarted() {
+    setPendingRun(true);
+    void refreshDashboard();
+  }
 
   return (
     <main className="max-w-3xl mx-auto px-4 py-10 space-y-8">
@@ -81,7 +104,7 @@ export default function DashboardClient({ initialData, markets }: Props) {
           <h1 className="text-2xl font-bold tracking-tight">MarketScout</h1>
           <p className="text-gray-500 text-sm mt-0.5">AI Market Intelligence · 12 ринків</p>
         </div>
-        <RunButton markets={markets} />
+        <RunButton markets={markets} onStarted={handleRunStarted} />
       </div>
 
       <div className="grid grid-cols-4 gap-3">
@@ -95,7 +118,13 @@ export default function DashboardClient({ initialData, markets }: Props) {
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">
             <h2 className="font-semibold text-base">Останні запуски</h2>
-            <LiveStatus running={hasRunningSession} refreshing={refreshing} error={error} updatedAt={data.generatedAt} />
+            <LiveStatus
+              running={hasRunningSession}
+              pending={pendingRun}
+              refreshing={refreshing}
+              error={error}
+              updatedAt={data.generatedAt}
+            />
           </div>
           <Link href="/sessions" className="text-sm text-indigo-600 hover:underline">
             Всі запуски →
@@ -192,11 +221,13 @@ function StatusBadge({ status }: { status: ScoutSession["status"] }) {
 
 function LiveStatus({
   running,
+  pending,
   refreshing,
   error,
   updatedAt
 }: {
   running: boolean;
+  pending: boolean;
   refreshing: boolean;
   error: string | null;
   updatedAt: string;
@@ -205,11 +236,11 @@ function LiveStatus({
     return <span className="text-xs text-red-500">{error}</span>;
   }
 
-  if (running) {
+  if (running || pending) {
     return (
       <span className="inline-flex items-center gap-1.5 text-xs text-indigo-600">
         <span className="h-2 w-2 rounded-full bg-indigo-500 animate-pulse" />
-        live
+        {running ? "live" : "стартую..."}
       </span>
     );
   }

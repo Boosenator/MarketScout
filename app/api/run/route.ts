@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getCronEnv } from "@/lib/config";
 import { createSupabaseAdmin } from "@/lib/supabase/client";
-import { findRunningSession } from "@/lib/supabase/queries";
+import { failStaleZeroProgressSessions, findRunningSession } from "@/lib/supabase/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +12,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   // Duplicate-run guard only for full pipeline runs
   if (!marketId) {
     const db = createSupabaseAdmin();
+    await failStaleZeroProgressSessions(db);
     const running = await findRunningSession(db);
 
     if (running) {

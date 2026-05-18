@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseAdmin } from "@/lib/supabase/client";
 import {
+  failStaleZeroProgressSessions,
   getTotalStats,
   getVoteCountsForIdeas,
   listAnalyzedIdeas,
@@ -11,6 +12,8 @@ export const dynamic = "force-dynamic";
 
 export async function GET(): Promise<NextResponse> {
   const db = createSupabaseAdmin();
+  await failStaleZeroProgressSessions(db);
+
   const [sessions, stats, allIdeas] = await Promise.all([
     listSessions(db, 5),
     getTotalStats(db),

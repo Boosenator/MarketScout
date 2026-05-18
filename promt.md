@@ -376,3 +376,5 @@ CRON_SECRET=               # для захисту cron endpoint
 - [x] Запуск з web-кнопки тепер теж іде через `background=1`, як Telegram/self-trigger.
 - [x] Web-кнопка запуску одразу будить dashboard: показує "стартую..." і вмикає швидкий polling ще до появи running-сесії в БД.
 - [x] `/api/dashboard` повертає `cache-control: no-store`, щоб Vercel/browser не кешували стан запусків.
+- [x] Додано auto-cleanup завислих web-сесій: `running` з 0 ринків/0 ідей старші 8 хвилин автоматично переходять у `failed`.
+- [x] Cleanup виконується на dashboard, `/api/dashboard`, `/sessions`, `/sessions/[id]` і перед новим web-запуском.

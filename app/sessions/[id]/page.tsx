@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { getMarketName } from "@/lib/scout/markets";
 import type { IdeaRecord, ScoutSession } from "@/lib/scout/types";
 import { createSupabaseAdmin } from "@/lib/supabase/client";
-import { getVoteCountsForIdeas, listSessionIdeas } from "@/lib/supabase/queries";
+import { failStaleZeroProgressSessions, getVoteCountsForIdeas, listSessionIdeas } from "@/lib/supabase/queries";
 import IdeaCard from "@/app/components/IdeaCard";
 
 export const dynamic = "force-dynamic";
@@ -14,6 +14,7 @@ interface Props {
 
 export default async function SessionDetailPage({ params }: Props) {
   const db = createSupabaseAdmin();
+  await failStaleZeroProgressSessions(db);
 
   const [sessionRes, ideas] = await Promise.all([
     db.from("scout_sessions").select("*").eq("id", params.id).maybeSingle(),

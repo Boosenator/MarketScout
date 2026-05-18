@@ -185,6 +185,25 @@ export async function listSessions(db: Db, limit = 50): Promise<ScoutSession[]> 
   return data as ScoutSession[];
 }
 
+export async function failStaleZeroProgressSessions(db: Db, staleAfterMinutes = 8): Promise<number> {
+  const cutoff = new Date(Date.now() - staleAfterMinutes * 60 * 1000).toISOString();
+
+  const { data, error } = await db
+    .from("scout_sessions")
+    .update({ status: "failed" })
+    .eq("status", "running")
+    .eq("markets_scanned", 0)
+    .eq("ideas_generated", 0)
+    .lt("created_at", cutoff)
+    .select("id");
+
+  if (error) {
+    throw error;
+  }
+
+  return data?.length ?? 0;
+}
+
 export async function listSessionIdeas(db: Db, sessionId: string): Promise<IdeaRecord[]> {
   const { data, error } = await db
     .from("scout_ideas")

@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { createSupabaseAdmin } from "@/lib/supabase/client";
-import { listSessions } from "@/lib/supabase/queries";
+import { failStaleZeroProgressSessions, listSessions } from "@/lib/supabase/queries";
 import type { ScoutSession } from "@/lib/scout/types";
 
 export const dynamic = "force-dynamic";
 
 export default async function SessionsPage() {
   const db = createSupabaseAdmin();
+  await failStaleZeroProgressSessions(db);
   const sessions = await listSessions(db);
 
   return (

@@ -67,6 +67,12 @@ export default async function SessionDetailPage({ params }: Props) {
               <span>Низький score (pass 2): {session.ideas_killed_p2 ?? 0}</span>
             </div>
           ) : null}
+
+          {session.status === "failed" && session.error_message ? (
+            <div className="mt-3 pt-3 border-t border-red-100 text-xs text-red-600 leading-relaxed">
+              <span className="font-semibold">Причина:</span> {session.error_message}
+            </div>
+          ) : null}
         </div>
       </div>
 

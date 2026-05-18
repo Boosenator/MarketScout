@@ -65,7 +65,7 @@ export async function runPhase1Test(marketId: string): Promise<Phase1TestResult>
 
     return { sessionId: session.id, market, signals };
   } catch (error) {
-    await updateScoutSession(db, session.id, { status: "failed" });
+    await updateScoutSession(db, session.id, { status: "failed", error_message: errorToMessage(error) });
     throw error;
   }
 }
@@ -98,7 +98,7 @@ export async function runPhase2Test(marketId: string, options: TestRunOptions = 
 
     return { sessionId: session.id, market, signals, rawIdeas, scoredIdeas, savedIdeas };
   } catch (error) {
-    await updateScoutSession(db, session.id, { status: "failed" });
+    await updateScoutSession(db, session.id, { status: "failed", error_message: errorToMessage(error) });
     throw error;
   }
 }
@@ -194,4 +194,12 @@ function survivors(ideas: ScoredIdea[]): ScoredIdea[] {
   return ideas
     .filter((idea) => idea.killed_at_pass === null && (idea.total_score ?? 0) >= 65)
     .sort((a, b) => (b.total_score ?? 0) - (a.total_score ?? 0));
+}
+
+function errorToMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message.slice(0, 1200);
+  }
+
+  return String(error).slice(0, 1200);
 }

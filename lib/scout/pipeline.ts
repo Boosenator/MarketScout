@@ -96,7 +96,7 @@ async function runSingleMarket(market: Market): Promise<PipelineSummary> {
 
     return summary;
   } catch (error) {
-    await updateScoutSession(db, session.id, { status: "failed" });
+    await updateScoutSession(db, session.id, { status: "failed", error_message: errorToMessage(error) });
     throw error;
   }
 }
@@ -169,7 +169,8 @@ async function runChunkedPipeline(selfTriggerUrl: string): Promise<PipelineSumma
           ideas_generated: ideasGenerated,
           ideas_killed_p1: killedPass1,
           ideas_killed_p2: killedPass2,
-          survivors: survivorsCount
+          survivors: survivorsCount,
+          error_message: `Market failed: ${market.name}. ${errorToMessage(error)}`
         });
         await sendProgressMessage(
           telegram,
@@ -223,7 +224,7 @@ async function runChunkedPipeline(selfTriggerUrl: string): Promise<PipelineSumma
 
     return summary;
   } catch (error) {
-    await updateScoutSession(db, session.id, { status: "failed" });
+    await updateScoutSession(db, session.id, { status: "failed", error_message: errorToMessage(error) });
     throw error;
   }
 }
@@ -318,4 +319,12 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
+}
+
+function errorToMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message.slice(0, 1200);
+  }
+
+  return String(error).slice(0, 1200);
 }

@@ -25,6 +25,16 @@ export async function updateScoutSession(
   const { error } = await db.from("scout_sessions").update(patch).eq("id", id);
 
   if (error) {
+    if (isMissingErrorMessageColumn(error) && "error_message" in patch) {
+      const { error_message: _errorMessage, ...retryPatch } = patch;
+      const retry = await db.from("scout_sessions").update(retryPatch).eq("id", id);
+
+      if (!retry.error) {
+        console.warn("scout_sessions.error_message column is missing; apply migration 003_session_error_message.sql.");
+        return;
+      }
+    }
+
     throw error;
   }
 }
@@ -190,7 +200,10 @@ export async function failStaleZeroProgressSessions(db: Db, staleAfterMinutes = 
 
   const { data, error } = await db
     .from("scout_sessions")
-    .update({ status: "failed" })
+    .update({
+      status: "failed",
+      error_message: `Auto-cleanup: session had 0 markets and 0 ideas after ${staleAfterMinutes} minutes.`
+    })
     .eq("status", "running")
     .eq("markets_scanned", 0)
     .eq("ideas_generated", 0)
@@ -198,10 +211,34 @@ export async function failStaleZeroProgressSessions(db: Db, staleAfterMinutes = 
     .select("id");
 
   if (error) {
+    if (isMissingErrorMessageColumn(error)) {
+      const retry = await db
+        .from("scout_sessions")
+        .update({ status: "failed" })
+        .eq("status", "running")
+        .eq("markets_scanned", 0)
+        .eq("ideas_generated", 0)
+        .lt("created_at", cutoff)
+        .select("id");
+
+      if (!retry.error) {
+        console.warn("scout_sessions.error_message column is missing; apply migration 003_session_error_message.sql.");
+        return retry.data?.length ?? 0;
+      }
+    }
+
     throw error;
   }
 
   return data?.length ?? 0;
+}
+
+function isMissingErrorMessageColumn(error: { code?: string; message?: string }): boolean {
+  return (
+    error.code === "42703" ||
+    error.code === "PGRST204" ||
+    /error_message/i.test(error.message ?? "")
+  );
 }
 
 export async function listSessionIdeas(db: Db, sessionId: string): Promise<IdeaRecord[]> {

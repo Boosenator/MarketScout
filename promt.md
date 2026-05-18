@@ -416,3 +416,11 @@ CRON_SECRET=               # для захисту cron endpoint
 - [x] Якщо Anthropic повертає `analogues` як об'єкти, вони конвертуються в короткі рядки.
 - [x] Deep dive max tokens збільшено для ручного web-posting, щоб менше ловити truncated JSON.
 - [x] `/api/ideas/[id]/post` більше не падає 500, якщо Anthropic deep dive зламався: зберігає fallback deep dive і постить ідею.
+## Статус 2026-05-18 / session failure diagnostics
+
+Зроблено:
+- [x] Додано migration `003_session_error_message.sql` з колонкою `scout_sessions.error_message`.
+- [x] Pipeline/test runs тепер записують причину падіння в `error_message`.
+- [x] Auto-cleanup завислих сесій теж записує причину.
+- [x] Сторінка `/sessions/[id]` показує причину для failed-сесій.
+- [x] Код сумісний до застосування migration: якщо колонки ще немає, update retry-иться без `error_message`.

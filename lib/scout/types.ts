@@ -61,6 +61,7 @@ export interface ScoutSession {
   ideas_killed_p2: number;
   survivors: number;
   status: "running" | "done" | "failed";
+  error_message: string | null;
   created_at: string;
 }
 

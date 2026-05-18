@@ -394,3 +394,4 @@ CRON_SECRET=               # для захисту cron endpoint
 - [x] Web-posting ідеї в Telegram тепер спочатку догенеровує `deep_dive`, якщо його ще немає.
 - [x] Formatter Telegram-поста більше не виводить `n/a` для аналогів, першого кроку або головного ризику.
 - [x] Deep dive sanitizer підставляє конкретні fallback-и, якщо модель повернула порожні масиви або `n/a`.
+- [x] Dashboard IdeaCard став tolerant до старих/битих `deep_dive` записів без `analogues` або `main_risks`, щоб не було client-side exception.

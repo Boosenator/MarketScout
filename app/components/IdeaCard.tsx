@@ -14,6 +14,10 @@ interface Props {
 export default function IdeaCard({ idea, votes, compact = false }: Props) {
   const score = idea.total_score ?? 0;
   const dd = idea.deep_dive;
+  const analogues = safeStringArray(dd?.analogues);
+  const mainRisks = safeStringArray(dd?.main_risks);
+  const firstValidationStep = typeof dd?.first_validation_step === "string" ? dd.first_validation_step : "";
+  const teamFitScore = typeof dd?.team_fit_score === "number" ? dd.team_fit_score : null;
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
@@ -60,27 +64,27 @@ export default function IdeaCard({ idea, votes, compact = false }: Props) {
       {/* Deep dive */}
       {dd && !compact && (
         <div className="border-t border-gray-100 pt-3 space-y-2 text-sm">
-          {dd.analogues.length > 0 && (
+          {analogues.length > 0 && (
             <div className="flex gap-2">
               <span className="text-gray-400 shrink-0">🏆</span>
-              <span className="text-gray-700">{dd.analogues.slice(0, 3).join(" · ")}</span>
+              <span className="text-gray-700">{analogues.slice(0, 3).join(" · ")}</span>
             </div>
           )}
-          {dd.first_validation_step && (
+          {firstValidationStep && (
             <div className="flex gap-2">
               <span className="text-gray-400 shrink-0">🚀</span>
-              <span className="text-gray-700">{dd.first_validation_step}</span>
+              <span className="text-gray-700">{firstValidationStep}</span>
             </div>
           )}
-          {dd.main_risks[0] && (
+          {mainRisks[0] && (
             <div className="flex gap-2">
               <span className="text-gray-400 shrink-0">⚠️</span>
-              <span className="text-gray-700">{dd.main_risks[0]}</span>
+              <span className="text-gray-700">{mainRisks[0]}</span>
             </div>
           )}
           <div className="flex gap-2">
             <span className="text-gray-400 shrink-0">👥</span>
-            <span className="text-gray-700">Team fit: {dd.team_fit_score}/10</span>
+            <span className="text-gray-700">Team fit: {teamFitScore ?? "?"}/10</span>
           </div>
         </div>
       )}
@@ -114,3 +118,6 @@ function ScoreBadge({ score }: { score: number }) {
   return <span className={`text-xs font-mono font-semibold px-2 py-0.5 rounded-full shrink-0 ${cls}`}>{score}/100</span>;
 }
 
+function safeStringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string" && item.trim().length > 0) : [];
+}

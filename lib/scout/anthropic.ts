@@ -79,8 +79,17 @@ async function requestAnthropic(options: CompleteJsonOptions): Promise<{ text: s
     if (response.status === 429 && attempt < attempts - 1) {
       lastRateLimitDetails = await response.text();
       const retryAfterSeconds = Number(response.headers.get("retry-after"));
-      const delayMs = Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0 ? retryAfterSeconds * 1000 : 65000;
-      console.warn(`Anthropic rate limit hit. Waiting ${Math.round(delayMs / 1000)}s before retry ${attempt + 1}.`);
+      const delayMs = Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0 ? retryAfterSeconds * 1000 : 60000;
+      console.warn(`Anthropic 429 rate limit. Waiting ${Math.round(delayMs / 1000)}s before retry ${attempt + 1}.`);
+      await sleep(delayMs);
+      continue;
+    }
+
+    if (response.status === 529 && attempt < attempts - 1) {
+      lastRateLimitDetails = await response.text();
+      // Exponential backoff: 15s, 30s, 60s
+      const delayMs = 15000 * Math.pow(2, attempt);
+      console.warn(`Anthropic 529 overloaded. Waiting ${Math.round(delayMs / 1000)}s before retry ${attempt + 1}.`);
       await sleep(delayMs);
       continue;
     }
@@ -100,7 +109,7 @@ async function requestAnthropic(options: CompleteJsonOptions): Promise<{ text: s
     return { text, stopReason: payload.stop_reason };
   }
 
-  throw new Error(`Anthropic request failed: 429 ${lastRateLimitDetails}`);
+  throw new Error(`Anthropic request failed: overloaded/rate-limited ${lastRateLimitDetails}`);
 }
 
 async function repairJson<T>(options: CompleteJsonOptions, invalidJson: string): Promise<T> {

@@ -367,3 +367,10 @@ CRON_SECRET=               # для захисту cron endpoint
 - [x] Chunked pipeline зменшено до 1 ринку за invocation, щоб не впиратися у Vercel timeout.
 - [x] Self-trigger між chunks теж іде через background endpoint, щоб ланцюг не обривався мовчки.
 - [x] Після кожного обробленого ринку бот постить progress-повідомлення у командний чат.
+## Статус 2026-05-18 / live dashboard
+
+Зроблено:
+- [x] Додано `/api/dashboard`, який віддає актуальні sessions/stats/top ideas для головної сторінки.
+- [x] Головна сторінка тепер оновлює "Останні запуски" без ручного refresh: кожні 3s під час running-сесії, кожні 12s у спокої.
+- [x] Поточний запуск підсвічується як "в роботі" з live-індикатором.
+- [x] Запуск з web-кнопки тепер теж іде через `background=1`, як Telegram/self-trigger.

@@ -1,4 +1,4 @@
-import { markets } from "@/lib/scout/markets";
+import { NextResponse } from "next/server";
 import { createSupabaseAdmin } from "@/lib/supabase/client";
 import {
   getTotalStats,
@@ -6,11 +6,10 @@ import {
   listAnalyzedIdeas,
   listSessions
 } from "@/lib/supabase/queries";
-import DashboardClient, { type DashboardData } from "./components/DashboardClient";
 
 export const dynamic = "force-dynamic";
 
-export default async function DashboardPage() {
+export async function GET(): Promise<NextResponse> {
   const db = createSupabaseAdmin();
   const [sessions, stats, allIdeas] = await Promise.all([
     listSessions(db, 5),
@@ -21,7 +20,7 @@ export default async function DashboardPage() {
   const topIdeas = [...allIdeas].sort((a, b) => (b.total_score ?? 0) - (a.total_score ?? 0)).slice(0, 10);
   const votesMap = await getVoteCountsForIdeas(db, topIdeas.map((idea) => idea.id));
 
-  const initialData: DashboardData = {
+  return NextResponse.json({
     sessions,
     stats,
     topIdeas: topIdeas.map((idea) => ({
@@ -29,7 +28,5 @@ export default async function DashboardPage() {
       votes: votesMap.get(idea.id) ?? { fire: 0, maybe: 0, skip: 0 }
     })),
     generatedAt: new Date().toISOString()
-  };
-
-  return <DashboardClient initialData={initialData} markets={markets.map((market) => ({ id: market.id, name: market.name }))} />;
+  });
 }

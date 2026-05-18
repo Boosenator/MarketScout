@@ -21,7 +21,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   const { CRON_SECRET } = getCronEnv();
   const baseUrl = `${request.nextUrl.origin}/api/cron/scout`;
-  const triggerUrl = marketId ? `${baseUrl}?market=${encodeURIComponent(marketId)}` : baseUrl;
+  const triggerUrl = marketId
+    ? `${baseUrl}?market=${encodeURIComponent(marketId)}&background=1`
+    : `${baseUrl}?background=1`;
 
   void fetch(triggerUrl, {
     method: "GET",

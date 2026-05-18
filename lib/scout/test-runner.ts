@@ -17,6 +17,12 @@ import { formatIdeaPost } from "@/lib/telegram/post-idea";
 
 export type PhaseName = "phase1" | "phase2" | "phase3" | "all";
 
+export interface TestRunOptions {
+  maxSignals?: number;
+  useGenerateWebSearch?: boolean;
+  useDeepDiveWebSearch?: boolean;
+}
+
 export interface Phase1TestResult {
   sessionId: string;
   market: Market;
@@ -64,7 +70,7 @@ export async function runPhase1Test(marketId: string): Promise<Phase1TestResult>
   }
 }
 
-export async function runPhase2Test(marketId: string): Promise<Phase2TestResult> {
+export async function runPhase2Test(marketId: string, options: TestRunOptions = {}): Promise<Phase2TestResult> {
   const env = getAnthropicEnv();
   const market = requireMarket(marketId);
   const db = createSupabaseAdmin();
@@ -74,7 +80,10 @@ export async function runPhase2Test(marketId: string): Promise<Phase2TestResult>
     const signals = await scoutMarketSignals(env.ANTHROPIC_API_KEY, market);
     await insertSignals(db, session.id, signals);
 
-    const rawIdeas = await generateIdeas(env.ANTHROPIC_API_KEY, market, signals);
+    const rawIdeas = await generateIdeas(env.ANTHROPIC_API_KEY, market, signals, {
+      maxSignals: options.maxSignals,
+      useWebSearch: options.useGenerateWebSearch
+    });
     const scoredIdeas = await filterAndScoreIdeas(env.ANTHROPIC_API_KEY, rawIdeas);
     const savedIdeas = await insertIdeas(db, session.id, scoredIdeas);
 
@@ -94,8 +103,8 @@ export async function runPhase2Test(marketId: string): Promise<Phase2TestResult>
   }
 }
 
-export async function runPhase3Test(marketId: string): Promise<Phase3TestResult> {
-  const phase2 = await runPhase2Test(marketId);
+export async function runPhase3Test(marketId: string, options: TestRunOptions = {}): Promise<Phase3TestResult> {
+  const phase2 = await runPhase2Test(marketId, options);
   const env = getAnthropicEnv();
   const db = createSupabaseAdmin();
   const selectedIdea = phase2.savedIdeas
@@ -106,7 +115,9 @@ export async function runPhase3Test(marketId: string): Promise<Phase3TestResult>
     return { ...phase2, selectedIdea: null, deepDive: null };
   }
 
-  const deepDive = await deepDiveIdea(env.ANTHROPIC_API_KEY, selectedIdea);
+  const deepDive = await deepDiveIdea(env.ANTHROPIC_API_KEY, selectedIdea, {
+    useWebSearch: options.useDeepDiveWebSearch
+  });
   await attachDeepDive(db, selectedIdea.id, deepDive);
 
   return { ...phase2, selectedIdea, deepDive };

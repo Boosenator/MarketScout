@@ -8,16 +8,21 @@ interface DeepDiveResponse {
   deep_dive: DeepDive;
 }
 
-export async function deepDiveIdea(apiKey: string, idea: ScoredIdea): Promise<DeepDive> {
+export interface DeepDiveOptions {
+  useWebSearch?: boolean;
+}
+
+export async function deepDiveIdea(apiKey: string, idea: ScoredIdea, options: DeepDiveOptions = {}): Promise<DeepDive> {
+  const useWebSearch = options.useWebSearch ?? true;
   const result = await completeJson<DeepDiveResponse>({
     apiKey,
     model,
     system:
-      `You are a pragmatic venture analyst. Target geography: ${targetRegionText}. Excluded geography: ${excludedRegionText}. Use web search to verify analogues, competitors, risks, regulation, and current market context in Ukraine, Europe, and the USA before writing. Never use Russia, Belarus, or CIS markets, companies, platforms, laws, pricing, demand, or analogues. Do not invent company traction or revenue. If exact revenue is unavailable, say what is observable instead. Produce a concrete deep dive with entry paths, risks, and a first validation step. Write all human-facing fields in Russian. team_fit_score must be an integer from 0 to 10, not a percentage.`,
+      `You are a pragmatic venture analyst. Target geography: ${targetRegionText}. Excluded geography: ${excludedRegionText}. ${useWebSearch ? "Use web search to verify analogues, competitors, risks, regulation, and current market context in Ukraine, Europe, and the USA before writing." : "Do not call web search; use the idea and its signals only, and phrase analogues conservatively if not directly verified."} Never use Russia, Belarus, or CIS markets, companies, platforms, laws, pricing, demand, or analogues. Do not invent company traction or revenue. If exact revenue is unavailable, say what is observable instead. Produce a concrete deep dive with entry paths, risks, and a first validation step. Write all human-facing fields in Russian. team_fit_score must be an integer from 0 to 10, not a percentage.`,
     messages: [
       {
         role: "user",
-        content: `Deep dive this idea using fresh web research for target geography: ${targetRegionText}. Exclude ${excludedRegionText} completely.
+        content: `Deep dive this idea ${useWebSearch ? "using fresh web research" : "using only the provided idea data"} for target geography: ${targetRegionText}. Exclude ${excludedRegionText} completely.
 
 Requirements:
 - analogues must be real companies/products/creators/marketplaces found or verified online in Ukraine, Europe, or the USA.
@@ -34,8 +39,8 @@ ${JSON.stringify(
         )}\n\nSchema: {"deep_dive":{"analogues":["..."],"entry_bootstrap":"...","entry_vc":"...","entry_lifestyle":"...","main_risks":["..."],"risk_mitigations":["..."],"first_validation_step":"...","team_fit_score":7}}`
       }
     ],
-    maxTokens: 3500,
-    tools: [{ type: "web_search_20250305", name: "web_search" }]
+    maxTokens: useWebSearch ? 3500 : 2200,
+    tools: useWebSearch ? [{ type: "web_search_20250305", name: "web_search" }] : undefined
   });
 
   return sanitizeDeepDive({

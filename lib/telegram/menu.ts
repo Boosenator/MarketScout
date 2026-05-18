@@ -76,7 +76,8 @@ export async function showTestsMenu(telegram: TelegramClient, chatId: number, me
       "/phase1 beauty",
       "/phase2 beauty",
       "/phase3 beauty",
-      "/testmarket beauty"
+      "/testmarket beauty — быстрый режим",
+      "/fullmarket beauty — полный web-grounded режим"
     ].join("\n"),
     { reply_markup: backKeyboard() }
   );
@@ -92,9 +93,10 @@ export async function showHelpMenu(telegram: TelegramClient, chatId: number, mes
       "Бот умеет запускать тесты фаз и листать готовые результаты анализа.",
       "",
       "Лучший рабочий поток:",
-      "1. /testmarket <market_id>",
-      "2. Открыть «Результаты анализа»",
-      "3. Листать вперед/назад"
+      "1. /testmarket <market_id> для быстрой проверки",
+      "2. /fullmarket <market_id> для полного анализа",
+      "3. Открыть «Результаты анализа»",
+      "4. Листать вперед/назад"
     ].join("\n"),
     { reply_markup: backKeyboard() }
   );

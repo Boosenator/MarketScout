@@ -5,7 +5,8 @@ import {
   runPhase3Test,
   summarizePhase1,
   summarizePhase2,
-  summarizePhase3
+  summarizePhase3,
+  type TestRunOptions
 } from "@/lib/scout/test-runner";
 import { createSupabaseAdmin } from "@/lib/supabase/client";
 import {
@@ -21,6 +22,16 @@ import { updateIdeaKeyboard } from "./post-idea";
 
 const votePattern = /^vote_(fire|maybe|skip)_(.+)$/;
 const resultsPattern = /^menu_results_(\d+)$/;
+const quickRunOptions: TestRunOptions = {
+  maxSignals: 2,
+  useGenerateWebSearch: false,
+  useDeepDiveWebSearch: false
+};
+const fullRunOptions: TestRunOptions = {
+  maxSignals: 5,
+  useGenerateWebSearch: true,
+  useDeepDiveWebSearch: true
+};
 
 interface TelegramUser {
   id: number;
@@ -114,8 +125,18 @@ async function handleCommand(telegram: TelegramClient, message: TelegramIncoming
     return;
   }
 
-  if (command.name === "phase1" || command.name === "phase2" || command.name === "phase3" || command.name === "testmarket") {
-    await runMarketCommand(telegram, message.chat.id, command.name, command.argument);
+  if (command.name === "phase1") {
+    await runMarketCommand(telegram, message.chat.id, command.name, command.argument, quickRunOptions);
+    return;
+  }
+
+  if (command.name === "phase2" || command.name === "phase3" || command.name === "testmarket") {
+    await runMarketCommand(telegram, message.chat.id, command.name, command.argument, quickRunOptions);
+    return;
+  }
+
+  if (command.name === "fullmarket") {
+    await runMarketCommand(telegram, message.chat.id, command.name, command.argument, fullRunOptions);
   }
 }
 
@@ -175,15 +196,17 @@ async function handleCallback(telegram: TelegramClient, callbackQuery: TelegramC
 async function runMarketCommand(
   telegram: TelegramClient,
   chatId: number,
-  command: "phase1" | "phase2" | "phase3" | "testmarket",
-  marketId: string | null
+  command: "phase1" | "phase2" | "phase3" | "testmarket" | "fullmarket",
+  marketId: string | null,
+  options: TestRunOptions
 ): Promise<void> {
   if (!marketId) {
     await telegram.sendMessage(chatId, `Формат: /${command} <market_id>\n\n${marketListText()}`);
     return;
   }
 
-  await telegram.sendMessage(chatId, `Запускаю ${command} для рынка ${marketId}. Это может занять пару минут.`);
+  const mode = command === "fullmarket" ? "полный" : "быстрый";
+  await telegram.sendMessage(chatId, `Запускаю ${mode} анализ для рынка ${marketId}. Это может занять пару минут.`);
 
   try {
     if (command === "phase1") {
@@ -192,11 +215,11 @@ async function runMarketCommand(
     }
 
     if (command === "phase2") {
-      await telegram.sendMessage(chatId, summarizePhase2(await runPhase2Test(marketId)));
+      await telegram.sendMessage(chatId, summarizePhase2(await runPhase2Test(marketId, options)));
       return;
     }
 
-    const phase3Result = await runPhase3Test(marketId);
+    const phase3Result = await runPhase3Test(marketId, options);
     await telegram.sendMessage(
       chatId,
       summarizePhase3(phase3Result),

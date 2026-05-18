@@ -3,28 +3,43 @@ import { containsExcludedRegion, excludedRegionText, targetRegionText } from "./
 import type { Market, RawIdea, Signal } from "./types";
 
 const model = "claude-haiku-4-5-20251001";
-const maxSignalsPerMarket = 5;
 const perSignalDelayMs = 1000;
+
+export interface GenerateIdeasOptions {
+  maxSignals?: number;
+  useWebSearch?: boolean;
+}
 
 interface IdeaResponse {
   ideas: RawIdea[];
 }
 
-export async function generateIdeas(apiKey: string, market: Market, signals: Signal[]): Promise<RawIdea[]> {
+export async function generateIdeas(
+  apiKey: string,
+  market: Market,
+  signals: Signal[],
+  options: GenerateIdeasOptions = {}
+): Promise<RawIdea[]> {
+  const maxSignals = options.maxSignals ?? 5;
   const ideas: RawIdea[] = [];
 
-  for (const signal of signals.slice(0, maxSignalsPerMarket)) {
-    const generated = await generateIdeasForSignal(apiKey, market, signal);
+  for (const signal of signals.slice(0, maxSignals)) {
+    const generated = await generateIdeasForSignal(apiKey, market, signal, options.useWebSearch ?? true);
     ideas.push(...generated);
     await sleep(perSignalDelayMs);
   }
 
   return dedupeIdeas(ideas)
     .filter((idea) => !containsExcludedRegion(JSON.stringify(idea)))
-    .slice(0, maxSignalsPerMarket);
+    .slice(0, maxSignals);
 }
 
-async function generateIdeasForSignal(apiKey: string, market: Market, signal: Signal): Promise<RawIdea[]> {
+async function generateIdeasForSignal(
+  apiKey: string,
+  market: Market,
+  signal: Signal,
+  useWebSearch: boolean
+): Promise<RawIdea[]> {
   const compactSignal = {
     title: clip(signal.title, 120),
     source: clip(signal.source, 80),
@@ -33,7 +48,7 @@ async function generateIdeasForSignal(apiKey: string, market: Market, signal: Si
   const result = await completeJson<IdeaResponse>({
     apiKey,
     model,
-    system: `You generate practical startup ideas for small teams. Target geography: ${targetRegionText}. Excluded geography: ${excludedRegionText}. Use web search before generating: look for current startups, market reports, Reddit/forum pain, TikTok/creator trends, marketplaces, and monetization examples in Ukraine, Europe, and the USA only. Never use Russia, Belarus, or CIS markets, examples, companies, regulation, pricing, demand signals, or analogues. Ideas must be grounded in web evidence, not generic brainstorming. Prefer ideas with fast validation, clear pain, and direct monetization. Write all human-facing fields in Russian. Keep every string compact: title <= 80 chars, description <= 220 chars, target_audience/monetization/why_now <= 180 chars.`,
+    system: `You generate practical startup ideas for small teams. Target geography: ${targetRegionText}. Excluded geography: ${excludedRegionText}. ${useWebSearch ? "Use web search before generating: look for current startups, market reports, Reddit/forum pain, TikTok/creator trends, marketplaces, and monetization examples in Ukraine, Europe, and the USA only." : "Use the provided signal as the only research input; do not perform additional web research."} Never use Russia, Belarus, or CIS markets, examples, companies, regulation, pricing, demand signals, or analogues. Ideas must be grounded in evidence, not generic brainstorming. Prefer ideas with fast validation, clear pain, and direct monetization. Write all human-facing fields in Russian. Keep every string compact: title <= 80 chars, description <= 220 chars, target_audience/monetization/why_now <= 180 chars.`,
     messages: [
       {
         role: "user",
@@ -41,7 +56,7 @@ async function generateIdeasForSignal(apiKey: string, market: Market, signal: Si
 
 Workflow:
 1. Use only this one signal as the seed.
-2. Search the web for fresh examples connected to this signal in Ukraine, Europe, and the USA.
+2. ${useWebSearch ? "Search the web for fresh examples connected to this signal in Ukraine, Europe, and the USA." : "Do not call web search; extract one practical idea directly from this signal."}
 3. Prefer ideas where you can point to real demand signals, real spending, or real companies/creators already proving part of the behavior.
 4. Do not invent market sizes, revenue, or analogues. If uncertain, phrase conservatively.
 5. In signals_used, include the signal title plus source/company/site names discovered via web search.
@@ -54,8 +69,8 @@ ${JSON.stringify(compactSignal, null, 2)}
 Schema: {"ideas":[{"market_id":"...","title":"...","description":"2 sentences","target_audience":"...","monetization":"...","why_now":"...","signals_used":["..."]}]}`
       }
     ],
-    maxTokens: 2500,
-    tools: [{ type: "web_search_20250305", name: "web_search" }]
+    maxTokens: useWebSearch ? 2500 : 1500,
+    tools: useWebSearch ? [{ type: "web_search_20250305", name: "web_search" }] : undefined
   });
 
   return result.ideas

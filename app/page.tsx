@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getMarketName } from "@/lib/scout/markets";
+import { markets, getMarketName } from "@/lib/scout/markets";
 import { createSupabaseAdmin } from "@/lib/supabase/client";
 import {
   getLatestSession,
@@ -32,7 +32,7 @@ export default async function DashboardPage() {
           <h1 className="text-2xl font-bold tracking-tight">MarketScout</h1>
           <p className="text-gray-500 text-sm mt-0.5">AI Market Intelligence · 12 ринків</p>
         </div>
-        <RunButton />
+        <RunButton markets={markets.map((m) => ({ id: m.id, name: m.name }))} />
       </div>
 
       {/* Stats */}

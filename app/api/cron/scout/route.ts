@@ -15,9 +15,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
 
-  // Pass own URL so the pipeline can self-trigger the next chunk
+  const marketId = request.nextUrl.searchParams.get("market") ?? undefined;
   const selfTriggerUrl = `${request.nextUrl.origin}/api/cron/scout`;
-  const summary = await runScoutPipeline(selfTriggerUrl);
+  const summary = await runScoutPipeline(selfTriggerUrl, marketId);
 
   return NextResponse.json({ ok: true, summary });
 }

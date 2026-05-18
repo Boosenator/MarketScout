@@ -6,17 +6,24 @@ import { findRunningSession } from "@/lib/supabase/queries";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  const db = createSupabaseAdmin();
-  const running = await findRunningSession(db);
+  const body = (await request.json()) as { marketId?: string };
+  const marketId = typeof body.marketId === "string" && body.marketId.length > 0 ? body.marketId : undefined;
 
-  if (running) {
-    return NextResponse.json({ ok: false, error: "already_running", date: running.date });
+  // Duplicate-run guard only for full pipeline runs
+  if (!marketId) {
+    const db = createSupabaseAdmin();
+    const running = await findRunningSession(db);
+
+    if (running) {
+      return NextResponse.json({ ok: false, error: "already_running", date: running.date });
+    }
   }
 
   const { CRON_SECRET } = getCronEnv();
-  const selfUrl = `${request.nextUrl.origin}/api/cron/scout`;
+  const baseUrl = `${request.nextUrl.origin}/api/cron/scout`;
+  const triggerUrl = marketId ? `${baseUrl}?market=${encodeURIComponent(marketId)}` : baseUrl;
 
-  void fetch(selfUrl, {
+  void fetch(triggerUrl, {
     method: "GET",
     headers: { "x-cron-secret": CRON_SECRET }
   }).catch((err: unknown) => {

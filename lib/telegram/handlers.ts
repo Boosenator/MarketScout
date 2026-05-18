@@ -219,7 +219,7 @@ async function handleCallback(telegram: TelegramClient, callbackQuery: TelegramC
         "Результати з'являться у каналі команди через ~5\\-10 хвилин\\."
       ].join("\n"),
       {
-        parse_mode: "Markdown",
+        parse_mode: "MarkdownV2",
         reply_markup: { inline_keyboard: [[{ text: "🏠 Головне меню", callback_data: "menu_main" }]] }
       }
     );
@@ -277,7 +277,7 @@ async function handleRunCommand(telegram: TelegramClient, chatId: number): Promi
       "Сканую 12 ринків, генерую ідеї, роблю deep dive\\.",
       "Результати з'являться у каналі команди через ~5\\-10 хвилин\\."
     ].join("\n"),
-    { parse_mode: "Markdown" }
+    { parse_mode: "MarkdownV2" }
   );
   void triggerPipeline();
 }
@@ -312,7 +312,7 @@ async function runMarketCommand(
     await telegram.sendMessage(
       chatId,
       summarizePhase3(phase3Result),
-      phase3Result.selectedIdea ? { parse_mode: "Markdown" } : {}
+      phase3Result.selectedIdea ? { parse_mode: "MarkdownV2" } : {}
     );
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";

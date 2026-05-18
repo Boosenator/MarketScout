@@ -23,7 +23,7 @@ export interface InlineKeyboardMarkup {
 }
 
 export interface SendMessageOptions {
-  parse_mode?: "Markdown";
+  parse_mode?: "Markdown" | "MarkdownV2";
   reply_markup?: InlineKeyboardMarkup;
 }
 

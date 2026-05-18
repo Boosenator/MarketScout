@@ -45,14 +45,14 @@ export function mainMenuKeyboard(): InlineKeyboardMarkup {
 
 export async function sendMainMenu(telegram: TelegramClient, chatId: number): Promise<void> {
   await telegram.sendMessage(chatId, mainMenuText(), {
-    parse_mode: "Markdown",
+    parse_mode: "MarkdownV2",
     reply_markup: mainMenuKeyboard()
   });
 }
 
 export async function editMainMenu(telegram: TelegramClient, chatId: number, messageId: number): Promise<void> {
   await telegram.editMessageText(chatId, messageId, mainMenuText(), {
-    parse_mode: "Markdown",
+    parse_mode: "MarkdownV2",
     reply_markup: mainMenuKeyboard()
   });
 }
@@ -70,7 +70,7 @@ export async function showResultsPage(
 
   if (ideas.length === 0) {
     await telegram.editMessageText(chatId, messageId, "Поки немає готових deep dive результатів\\.", {
-      parse_mode: "Markdown",
+      parse_mode: "MarkdownV2",
       reply_markup: backKeyboard()
     });
     return;
@@ -86,7 +86,7 @@ export async function showResultsPage(
   const text = [header, "", formatIdeaPost(idea), "", voteBar].join("\n");
 
   await telegram.editMessageText(chatId, messageId, text, {
-    parse_mode: "Markdown",
+    parse_mode: "MarkdownV2",
     reply_markup: resultsNavKeyboard(normalizedPage, ideas.length)
   });
 }
@@ -104,7 +104,7 @@ export async function showTopVotedPage(
 
   if (ideas.length === 0) {
     await telegram.editMessageText(chatId, messageId, "Поки немає результатів для голосування\\.", {
-      parse_mode: "Markdown",
+      parse_mode: "MarkdownV2",
       reply_markup: backKeyboard()
     });
     return;
@@ -128,7 +128,7 @@ export async function showTopVotedPage(
   const text = [header, "", formatIdeaPost(idea), "", voteBar].join("\n");
 
   await telegram.editMessageText(chatId, messageId, text, {
-    parse_mode: "Markdown",
+    parse_mode: "MarkdownV2",
     reply_markup: topVotedNavKeyboard(normalizedPage, sorted.length)
   });
 }
@@ -146,7 +146,7 @@ export async function showStatusPage(
   const text = buildStatusText(session, stats);
 
   await telegram.editMessageText(chatId, messageId, text, {
-    parse_mode: "Markdown",
+    parse_mode: "MarkdownV2",
     reply_markup: backKeyboard()
   });
 }
@@ -197,7 +197,7 @@ export async function showRunConfirmPage(
         `Сесія від ${escapeMarkdown(session.date)} зараз у статусі _running_\\.`,
         "Зачекай поки вона завершиться\\."
       ].join("\n"),
-      { parse_mode: "Markdown", reply_markup: backKeyboard() }
+      { parse_mode: "MarkdownV2", reply_markup: backKeyboard() }
     );
     return;
   }
@@ -215,7 +215,7 @@ export async function showRunConfirmPage(
       "⏱ Займає ~5\\-10 хвилин\\."
     ].join("\n"),
     {
-      parse_mode: "Markdown",
+      parse_mode: "MarkdownV2",
       reply_markup: {
         inline_keyboard: [
           [
@@ -246,7 +246,7 @@ export async function showTestsMenu(telegram: TelegramClient, chatId: number, me
       "`/phase2 beauty` — генерація + фільтрація",
       "`/phase3 beauty` — deep dive"
     ].join("\n"),
-    { parse_mode: "Markdown", reply_markup: backKeyboard() }
+    { parse_mode: "MarkdownV2", reply_markup: backKeyboard() }
   );
 }
 
@@ -271,7 +271,7 @@ export async function showHelpMenu(telegram: TelegramClient, chatId: number, mes
       "🔥 Годнота / 🤔 Може бути / 👎 Скіп",
       "Один голос на людину\\, можна перевибрати\\."
     ].join("\n"),
-    { parse_mode: "Markdown", reply_markup: backKeyboard() }
+    { parse_mode: "MarkdownV2", reply_markup: backKeyboard() }
   );
 }
 
@@ -324,5 +324,5 @@ function escapeMarkdown(value: string): string {
 export async function sendStatusMessage(telegram: TelegramClient, chatId: number): Promise<void> {
   const db = createSupabaseAdmin();
   const [session, stats] = await Promise.all([getLatestSession(db), getTotalStats(db)]);
-  await telegram.sendMessage(chatId, buildStatusText(session, stats), { parse_mode: "Markdown" });
+  await telegram.sendMessage(chatId, buildStatusText(session, stats), { parse_mode: "MarkdownV2" });
 }

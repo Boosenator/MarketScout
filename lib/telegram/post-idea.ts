@@ -17,14 +17,14 @@ export async function postDigest(telegram: TelegramClient, summary: PipelineSumm
       `Отсеяно: ${summary.killedPass1 + summary.killedPass2}`,
       `Годных кандидатов: ${summary.survivors}`
     ].join("\n"),
-    { parse_mode: "Markdown" }
+    { parse_mode: "MarkdownV2" }
   );
 }
 
 export async function postIdea(telegram: TelegramClient, idea: IdeaRecord): Promise<number> {
   const env = getTelegramEnv();
   const message = await telegram.sendMessage(env.TELEGRAM_CHAT_ID, formatIdeaPost(idea), {
-    parse_mode: "Markdown",
+    parse_mode: "MarkdownV2",
     reply_markup: voteKeyboard(idea.id, { fire: 0, maybe: 0, skip: 0 })
   });
 

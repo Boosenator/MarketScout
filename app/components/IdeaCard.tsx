@@ -1,5 +1,6 @@
 import { getMarketName } from "@/lib/scout/markets";
 import type { IdeaRecord } from "@/lib/scout/types";
+import PostToTelegramButton from "./PostToTelegramButton";
 
 type VoteCounts = Record<"fire" | "maybe" | "skip", number>;
 
@@ -83,14 +84,21 @@ export default function IdeaCard({ idea, votes, compact = false }: Props) {
         </div>
       )}
 
-      {/* Votes */}
+      {/* Votes + actions */}
       <div className="flex items-center gap-4 text-sm pt-1">
         <VotePill emoji="🔥" count={votes.fire} />
         <VotePill emoji="🤔" count={votes.maybe} />
         <VotePill emoji="👎" count={votes.skip} />
-        <span className="ml-auto text-xs text-gray-400">
-          {new Date(idea.created_at).toLocaleDateString("uk-UA")}
-        </span>
+        <div className="ml-auto flex items-center gap-3">
+          {idea.telegram_message_id ? (
+            <span className="text-xs text-gray-400">✓ в каналі</span>
+          ) : (
+            <PostToTelegramButton ideaId={idea.id} />
+          )}
+          <span className="text-xs text-gray-400">
+            {new Date(idea.created_at).toLocaleDateString("uk-UA")}
+          </span>
+        </div>
       </div>
     </div>
   );

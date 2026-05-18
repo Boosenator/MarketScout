@@ -1,5 +1,11 @@
 import { completeJson } from "./anthropic";
-import { containsExcludedRegion, excludedRegionText, targetRegionText } from "./markets";
+import {
+  containsExcludedOpportunity,
+  containsExcludedRegion,
+  excludedOpportunityText,
+  excludedRegionText,
+  targetRegionText
+} from "./markets";
 import type { Market, RawIdea, Signal } from "./types";
 
 const model = "claude-haiku-4-5-20251001";
@@ -31,6 +37,7 @@ export async function generateIdeas(
 
   return dedupeIdeas(ideas)
     .filter((idea) => !containsExcludedRegion(JSON.stringify(idea)))
+    .filter((idea) => !containsExcludedOpportunity(JSON.stringify(idea)))
     .slice(0, maxSignals);
 }
 
@@ -48,7 +55,7 @@ async function generateIdeasForSignal(
   const result = await completeJson<IdeaResponse>({
     apiKey,
     model,
-    system: `You generate practical startup ideas for small teams. Target geography: ${targetRegionText}. Excluded geography: ${excludedRegionText}. ${useWebSearch ? "Use web search before generating: look for current startups, market reports, forum pain, creator trends, marketplaces, and monetization examples in Ukraine, Europe, and the USA only." : "Use the provided web-grounded signal as the only research input; do not perform additional web research."} Never use Russia, Belarus, or CIS markets, examples, companies, regulation, pricing, demand signals, or analogues. Ideas must be grounded in evidence, not generic brainstorming. Prefer fast validation, clear pain, and direct monetization. Write all human-facing fields in Russian. Do not end fields with ellipses or unfinished sentences. Keep text concise but complete: title <= 90 chars, description 2 complete sentences <= 360 chars, target_audience/monetization/why_now <= 240 chars.`,
+    system: `You generate practical startup ideas for small teams. Target geography: ${targetRegionText}. Excluded geography: ${excludedRegionText}. Excluded opportunity types: ${excludedOpportunityText}. ${useWebSearch ? "Use web search before generating: look for current startups, market reports, forum pain, creator trends, marketplaces, and monetization examples in Ukraine, Europe, and the USA only." : "Use the provided web-grounded signal as the only research input; do not perform additional web research."} Never use Russia, Belarus, or CIS markets, examples, companies, regulation, pricing, demand signals, or analogues. Never generate defense, weapons, military, war, drone/UAV, dual-use military supply chain, cheap-labor arbitrage, exploitative labor, guaranteed-employment, grant-dependent, or government-procurement-first ideas. Ideas must be grounded in evidence, not generic brainstorming. Prefer fast validation, clear pain, and direct monetization from paying customers. Write all human-facing fields in Russian. Do not end fields with ellipses or unfinished sentences. Keep text concise but complete: title <= 90 chars, description 2 complete sentences <= 360 chars, target_audience/monetization/why_now <= 240 chars.`,
     messages: [
       {
         role: "user",
@@ -62,6 +69,7 @@ Workflow:
 5. In signals_used, include the signal title plus source/company/site names discovered via web search.
 6. Prefer EU/US/UA go-to-market, pricing, regulation, and channels. Mention region explicitly when it affects the idea.
 7. Reject any idea that depends on Russia, Belarus, CIS, Russian regulation, Russian platforms, Russian companies, or Russian consumer demand.
+8. Reject any idea related to defense, weapons, military, war, drones/UAVs, dual-use military supply chains, cheap labor, guaranteed employment, grants as the main monetization, or government procurement as the first buyer.
 
 Signal:
 ${JSON.stringify(compactSignal, null, 2)}
@@ -76,6 +84,7 @@ Schema: {"ideas":[{"market_id":"...","title":"...","description":"2 sentences","
   return result.ideas
     .map((idea) => ({ ...idea, market_id: market.id }))
     .filter((idea) => !containsExcludedRegion(JSON.stringify(idea)))
+    .filter((idea) => !containsExcludedOpportunity(JSON.stringify(idea)))
     .slice(0, 1);
 }
 

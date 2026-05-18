@@ -401,3 +401,11 @@ CRON_SECRET=               # для захисту cron endpoint
 - [x] Telegram progress/digest/posting більше не валить full pipeline у `failed`; помилки Telegram логуються, але аналіз продовжується.
 - [x] Phase 2 prompt розширено: описи мають бути завершеними реченнями без `...`.
 - [x] Внутрішнє обрізання для scoring тепер ріже по реченню/слову, а не додає `...` посеред деталі.
+## Статус 2026-05-18 / idea thesis guardrails
+
+Зроблено:
+- [x] Додано blacklist для defense/war/weapons/drones/dual-use military supply chains.
+- [x] Додано blacklist для cheap-labor arbitrage, exploitative labor, guaranteed-employment schemes.
+- [x] Додано blacklist для grant-dependent та government-procurement-first ідей.
+- [x] Phase 1/2 prompts тепер явно шукають civilian commercial opportunities і відсікають ці теми.
+- [x] Runtime-фільтр і scoring примусово вбивають ідеї з виключених opportunity types, навіть якщо модель їх згенерувала.

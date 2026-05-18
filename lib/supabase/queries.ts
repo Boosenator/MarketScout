@@ -171,6 +171,34 @@ export async function listAnalyzedIdeas(db: Db, limit = 20): Promise<IdeaRecord[
   return data as IdeaRecord[];
 }
 
+export async function listSessions(db: Db, limit = 50): Promise<ScoutSession[]> {
+  const { data, error } = await db
+    .from("scout_sessions")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    throw error;
+  }
+
+  return data as ScoutSession[];
+}
+
+export async function listSessionIdeas(db: Db, sessionId: string): Promise<IdeaRecord[]> {
+  const { data, error } = await db
+    .from("scout_ideas")
+    .select("*")
+    .eq("session_id", sessionId)
+    .order("total_score", { ascending: false, nullsFirst: false });
+
+  if (error) {
+    throw error;
+  }
+
+  return data as IdeaRecord[];
+}
+
 export async function getLatestSession(db: Db): Promise<ScoutSession | null> {
   const { data, error } = await db
     .from("scout_sessions")

@@ -1,6 +1,7 @@
 import { getMarketName } from "@/lib/scout/markets";
 import type { IdeaRecord } from "@/lib/scout/types";
 import PostToTelegramButton from "./PostToTelegramButton";
+import VoteCounts from "./VoteCounts";
 
 type VoteCounts = Record<"fire" | "maybe" | "skip", number>;
 
@@ -86,9 +87,7 @@ export default function IdeaCard({ idea, votes, compact = false }: Props) {
 
       {/* Votes + actions */}
       <div className="flex items-center gap-4 text-sm pt-1">
-        <VotePill emoji="🔥" count={votes.fire} />
-        <VotePill emoji="🤔" count={votes.maybe} />
-        <VotePill emoji="👎" count={votes.skip} />
+        <VoteCounts ideaId={idea.id} initial={votes} />
         <div className="ml-auto flex items-center gap-3">
           {idea.telegram_message_id ? (
             <span className="text-xs text-gray-400">✓ в каналі</span>
@@ -115,10 +114,3 @@ function ScoreBadge({ score }: { score: number }) {
   return <span className={`text-xs font-mono font-semibold px-2 py-0.5 rounded-full shrink-0 ${cls}`}>{score}/100</span>;
 }
 
-function VotePill({ emoji, count }: { emoji: string; count: number }) {
-  return (
-    <span className="flex items-center gap-1 text-gray-500">
-      {emoji} <span className="font-medium text-gray-700">{count}</span>
-    </span>
-  );
-}

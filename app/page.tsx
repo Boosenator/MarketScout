@@ -1,11 +1,11 @@
 import Link from "next/link";
-import { markets, getMarketName } from "@/lib/scout/markets";
+import { markets } from "@/lib/scout/markets";
 import { createSupabaseAdmin } from "@/lib/supabase/client";
 import {
-  getLatestSession,
   getTotalStats,
   getVoteCountsForIdeas,
-  listAnalyzedIdeas
+  listAnalyzedIdeas,
+  listSessions
 } from "@/lib/supabase/queries";
 import type { ScoutSession } from "@/lib/scout/types";
 import IdeaCard from "./components/IdeaCard";
@@ -15,8 +15,8 @@ export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const db = createSupabaseAdmin();
-  const [session, stats, allIdeas] = await Promise.all([
-    getLatestSession(db),
+  const [sessions, stats, allIdeas] = await Promise.all([
+    listSessions(db, 5),
     getTotalStats(db),
     listAnalyzedIdeas(db, 30)
   ]);
@@ -43,13 +43,34 @@ export default async function DashboardPage() {
         <StatCard label="Deep dive" value={stats.deepDiveCount} />
       </div>
 
-      {/* Latest session */}
-      {session && <SessionCard session={session} />}
+      {/* Recent sessions */}
+      <section>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-semibold text-base">Останні запуски</h2>
+          <Link href="/sessions" className="text-sm text-indigo-600 hover:underline">
+            Всі запуски →
+          </Link>
+        </div>
+
+        {sessions.length === 0 ? (
+          <p className="text-gray-400 text-sm">Ще не було жодного запуску.</p>
+        ) : (
+          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+            <table className="w-full text-sm">
+              <tbody className="divide-y divide-gray-50">
+                {sessions.map((s) => (
+                  <SessionRow key={s.id} session={s} />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
 
       {/* Top ideas */}
       <section>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="font-semibold text-lg">Топ ідеї</h2>
+          <h2 className="font-semibold text-base">Топ ідеї</h2>
           <Link href="/ideas" className="text-sm text-indigo-600 hover:underline">
             Всі ідеї →
           </Link>
@@ -82,36 +103,30 @@ function StatCard({ label, value }: { label: string; value: number }) {
   );
 }
 
-function SessionCard({ session }: { session: ScoutSession }) {
-  const statusConfig: Record<ScoutSession["status"], { label: string; cls: string; dot?: string }> = {
-    running: {
-      label: "Виконується",
-      cls: "bg-blue-50 border-blue-200",
-      dot: "bg-blue-500 animate-pulse"
-    },
-    done: { label: "Завершено", cls: "bg-green-50 border-green-200" },
-    failed: { label: "Помилка", cls: "bg-red-50 border-red-200" }
+function SessionRow({ session: s }: { session: ScoutSession }) {
+  const killed = (s.ideas_killed_p1 ?? 0) + (s.ideas_killed_p2 ?? 0);
+
+  const statusIcon: Record<ScoutSession["status"], string> = {
+    running: "🔄",
+    done: "✅",
+    failed: "❌"
   };
 
-  const { label, cls, dot } = statusConfig[session.status];
-
   return (
-    <div className={`border rounded-xl p-4 ${cls}`}>
-      <div className="flex items-center justify-between">
-        <span className="font-medium text-sm">Остання сесія · {session.date}</span>
-        <span className="flex items-center gap-1.5 text-xs font-medium">
-          {dot && <span className={`w-2 h-2 rounded-full ${dot}`} />}
-          {label}
-        </span>
-      </div>
-      <div className="mt-2 flex gap-5 text-sm text-gray-600">
-        <span>🌍 {session.markets_scanned}/12 ринків</span>
-        <span>💡 {session.ideas_generated} ідей</span>
-        <span>
-          ❌ {(session.ideas_killed_p1 ?? 0) + (session.ideas_killed_p2 ?? 0)} відсіяно
-        </span>
-        <span>✨ {session.survivors} вижило</span>
-      </div>
-    </div>
+    <tr className="hover:bg-gray-50 transition-colors">
+      <td className="px-4 py-3 font-mono text-gray-700 text-sm">{s.date}</td>
+      <td className="px-4 py-3 text-base">{statusIcon[s.status]}</td>
+      <td className="px-4 py-3 text-sm text-gray-500">
+        {s.markets_scanned}<span className="text-gray-300">/12</span> ринків
+      </td>
+      <td className="px-4 py-3 text-sm text-gray-500">{s.ideas_generated} ідей</td>
+      <td className="px-4 py-3 text-sm text-gray-400">{killed} відсіяно</td>
+      <td className="px-4 py-3 text-sm font-medium text-gray-800">{s.survivors} вижило</td>
+      <td className="px-4 py-3 text-right">
+        <Link href={`/sessions/${s.id}`} className="text-indigo-600 hover:text-indigo-800 text-xs font-medium">
+          Деталі →
+        </Link>
+      </td>
+    </tr>
   );
 }

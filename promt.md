@@ -395,3 +395,9 @@ CRON_SECRET=               # для захисту cron endpoint
 - [x] Formatter Telegram-поста більше не виводить `n/a` для аналогів, першого кроку або головного ризику.
 - [x] Deep dive sanitizer підставляє конкретні fallback-и, якщо модель повернула порожні масиви або `n/a`.
 - [x] Dashboard IdeaCard став tolerant до старих/битих `deep_dive` записів без `analogues` або `main_risks`, щоб не було client-side exception.
+## Статус 2026-05-18 / pipeline robustness and text completeness
+
+Зроблено:
+- [x] Telegram progress/digest/posting більше не валить full pipeline у `failed`; помилки Telegram логуються, але аналіз продовжується.
+- [x] Phase 2 prompt розширено: описи мають бути завершеними реченнями без `...`.
+- [x] Внутрішнє обрізання для scoring тепер ріже по реченню/слову, а не додає `...` посеред деталі.

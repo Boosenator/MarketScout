@@ -19,11 +19,11 @@ export async function filterAndScoreIdeas(apiKey: string, ideas: RawIdea[]): Pro
 async function filterAndScoreBatch(apiKey: string, ideas: RawIdea[]): Promise<ScoredIdea[]> {
   const compactIdeas = ideas.map((idea) => ({
     ...idea,
-    description: clip(idea.description, 180),
-    target_audience: clip(idea.target_audience, 120),
-    monetization: clip(idea.monetization, 120),
-    why_now: clip(idea.why_now, 120),
-    signals_used: idea.signals_used.slice(0, 2).map((signal) => clip(signal, 120))
+    description: clip(idea.description, 360),
+    target_audience: clip(idea.target_audience, 240),
+    monetization: clip(idea.monetization, 240),
+    why_now: clip(idea.why_now, 240),
+    signals_used: idea.signals_used.slice(0, 2).map((signal) => clip(signal, 180))
   }));
 
   const result = await completeJson<FilterResponse>({
@@ -57,5 +57,17 @@ Schema: {"ideas":[{"market_id":"...","title":"...","description":"...","target_a
 }
 
 function clip(value: string, maxLength: number): string {
-  return value.length <= maxLength ? value : `${value.slice(0, maxLength - 1)}...`;
+  if (value.length <= maxLength) {
+    return value;
+  }
+
+  const clipped = value.slice(0, maxLength);
+  const lastSentence = Math.max(clipped.lastIndexOf("."), clipped.lastIndexOf("!"), clipped.lastIndexOf("?"));
+
+  if (lastSentence > maxLength * 0.45) {
+    return clipped.slice(0, lastSentence + 1);
+  }
+
+  const lastSpace = clipped.lastIndexOf(" ");
+  return `${clipped.slice(0, lastSpace > 40 ? lastSpace : maxLength).trim()}.`;
 }

@@ -48,7 +48,7 @@ async function generateIdeasForSignal(
   const result = await completeJson<IdeaResponse>({
     apiKey,
     model,
-    system: `You generate practical startup ideas for small teams. Target geography: ${targetRegionText}. Excluded geography: ${excludedRegionText}. ${useWebSearch ? "Use web search before generating: look for current startups, market reports, forum pain, creator trends, marketplaces, and monetization examples in Ukraine, Europe, and the USA only." : "Use the provided web-grounded signal as the only research input; do not perform additional web research."} Never use Russia, Belarus, or CIS markets, examples, companies, regulation, pricing, demand signals, or analogues. Ideas must be grounded in evidence, not generic brainstorming. Prefer fast validation, clear pain, and direct monetization. Write all human-facing fields in Russian. Keep every string compact: title <= 70 chars, description <= 180 chars, target_audience/monetization/why_now <= 140 chars.`,
+    system: `You generate practical startup ideas for small teams. Target geography: ${targetRegionText}. Excluded geography: ${excludedRegionText}. ${useWebSearch ? "Use web search before generating: look for current startups, market reports, forum pain, creator trends, marketplaces, and monetization examples in Ukraine, Europe, and the USA only." : "Use the provided web-grounded signal as the only research input; do not perform additional web research."} Never use Russia, Belarus, or CIS markets, examples, companies, regulation, pricing, demand signals, or analogues. Ideas must be grounded in evidence, not generic brainstorming. Prefer fast validation, clear pain, and direct monetization. Write all human-facing fields in Russian. Do not end fields with ellipses or unfinished sentences. Keep text concise but complete: title <= 90 chars, description 2 complete sentences <= 360 chars, target_audience/monetization/why_now <= 240 chars.`,
     messages: [
       {
         role: "user",
@@ -69,7 +69,7 @@ ${JSON.stringify(compactSignal, null, 2)}
 Schema: {"ideas":[{"market_id":"...","title":"...","description":"2 sentences","target_audience":"...","monetization":"...","why_now":"...","signals_used":["..."]}]}`
       }
     ],
-    maxTokens: useWebSearch ? 1600 : 900,
+    maxTokens: useWebSearch ? 1800 : 1200,
     tools: useWebSearch ? [{ type: "web_search_20250305", name: "web_search" }] : undefined
   });
 

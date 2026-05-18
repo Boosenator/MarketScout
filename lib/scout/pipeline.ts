@@ -117,8 +117,7 @@ async function runChunkedPipeline(selfTriggerUrl: string): Promise<PipelineSumma
   let survivorsCount = session.survivors;
 
   const chunkMarkets = markets.slice(marketsScanned, marketsScanned + CHUNK_SIZE);
-  const telegram = createTelegramClient();
-  const telegramChatId = getTelegramEnv().TELEGRAM_CHAT_ID;
+  const telegram = getOptionalTelegramClient();
 
   try {
     for (const market of chunkMarkets) {
@@ -152,8 +151,8 @@ async function runChunkedPipeline(selfTriggerUrl: string): Promise<PipelineSumma
           survivors: survivorsCount
         });
 
-        await telegram.sendMessage(
-          telegramChatId,
+        await sendProgressMessage(
+          telegram,
           [
             "▶️ Прогресс анализа",
             `Рынок: ${market.name}`,
@@ -172,8 +171,8 @@ async function runChunkedPipeline(selfTriggerUrl: string): Promise<PipelineSumma
           ideas_killed_p2: killedPass2,
           survivors: survivorsCount
         });
-        await telegram.sendMessage(
-          telegramChatId,
+        await sendProgressMessage(
+          telegram,
           [
             `⚠️ Рынок не обработан: ${market.name}`,
             error instanceof Error ? error.message : "Unknown error",
@@ -249,14 +248,54 @@ async function postMergedAnalysis(
     }
   }
 
-  const telegram = createTelegramClient();
-  await postDigest(telegram, summary);
+  const telegram = getOptionalTelegramClient();
+
+  if (!telegram) {
+    console.warn("Telegram is not available; skipping digest posting.");
+    return;
+  }
+
+  try {
+    await postDigest(telegram, summary);
+  } catch (error) {
+    console.error("Telegram digest posting failed", error);
+    return;
+  }
 
   for (const idea of withDeepDives) {
-    const messageId = await postIdea(telegram, idea);
-    await attachTelegramMessage(db, idea.id, messageId);
-    summary.posted += 1;
-    await sleep(phaseDelayMs);
+    try {
+      const messageId = await postIdea(telegram, idea);
+      await attachTelegramMessage(db, idea.id, messageId);
+      summary.posted += 1;
+      await sleep(phaseDelayMs);
+    } catch (error) {
+      console.error(`Telegram idea posting failed: ${idea.id}`, error);
+    }
+  }
+}
+
+function getOptionalTelegramClient(): ReturnType<typeof createTelegramClient> | null {
+  try {
+    getTelegramEnv();
+    return createTelegramClient();
+  } catch (error) {
+    console.warn("Telegram env is not available; Telegram posting is disabled.", error);
+    return null;
+  }
+}
+
+async function sendProgressMessage(
+  telegram: ReturnType<typeof createTelegramClient> | null,
+  text: string
+): Promise<void> {
+  if (!telegram) {
+    return;
+  }
+
+  try {
+    await telegram.sendMessage(getTelegramEnv().TELEGRAM_CHAT_ID, text);
+  } catch (error) {
+    console.error("Telegram progress message failed", error);
   }
 }
 

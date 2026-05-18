@@ -1,4 +1,4 @@
-import { getCronEnv, getAnthropicEnv } from "@/lib/config";
+import { getCronEnv, getAnthropicEnv, getTelegramEnv } from "@/lib/config";
 import { markets } from "@/lib/scout/markets";
 import { scoutMarketSignals } from "@/lib/scout/phase1-search";
 import { generateIdeas } from "@/lib/scout/phase2-generate";
@@ -19,7 +19,7 @@ import {
 import { createTelegramClient } from "@/lib/telegram/client";
 import { postDigest, postIdea } from "@/lib/telegram/post-idea";
 
-const CHUNK_SIZE = 4;
+const CHUNK_SIZE = 1;
 const phaseDelayMs = 500;
 
 /**
@@ -112,6 +112,8 @@ async function runChunkedPipeline(selfTriggerUrl: string): Promise<PipelineSumma
   let survivorsCount = session.survivors;
 
   const chunkMarkets = markets.slice(marketsScanned, marketsScanned + CHUNK_SIZE);
+  const telegram = createTelegramClient();
+  const telegramChatId = getTelegramEnv().TELEGRAM_CHAT_ID;
 
   try {
     for (const market of chunkMarkets) {
@@ -141,15 +143,30 @@ async function runChunkedPipeline(selfTriggerUrl: string): Promise<PipelineSumma
           ideas_killed_p2: killedPass2,
           survivors: survivorsCount
         });
+
+        await telegram.sendMessage(
+          telegramChatId,
+          [
+            "▶️ Прогресс анализа",
+            `Рынок: ${market.name}`,
+            `Готово рынков: ${marketsScanned}/${markets.length}`,
+            `Идей: ${ideasGenerated}`,
+            `Survivors: ${survivorsCount}`
+          ].join("\n")
+        );
       } catch (error) {
         console.error(`Market failed: ${market.id}`, error);
+        await telegram.sendMessage(
+          telegramChatId,
+          [`⚠️ Рынок не обработан: ${market.name}`, error instanceof Error ? error.message : "Unknown error"].join("\n")
+        );
       }
     }
 
     const allMarketsProcessed = marketsScanned >= markets.length;
 
     if (!allMarketsProcessed) {
-      void selfTrigger(selfTriggerUrl);
+      await selfTrigger(selfTriggerUrl);
       return {
         sessionId: session.id,
         marketsScanned,
@@ -225,7 +242,10 @@ async function postMergedAnalysis(
 
 function selfTrigger(url: string): Promise<void> {
   const { CRON_SECRET } = getCronEnv();
-  return fetch(url, {
+  const nextUrl = new URL(url);
+  nextUrl.searchParams.set("background", "1");
+
+  return fetch(nextUrl.toString(), {
     method: "GET",
     headers: { "x-cron-secret": CRON_SECRET }
   })

@@ -360,3 +360,10 @@ CRON_SECRET=               # для захисту cron endpoint
 - [x] Після всіх 12 ринків — завантажує survivors з DB (score ≥ 65), робить deep dive топ-5, постить.
 - [x] `selfTriggerUrl` береться з `request.nextUrl.origin` у route.ts (без env-залежності).
 - [x] Нові DB-запити: `findRunningSession` (2h cutoff), `loadSessionSurvivors` (sorted by score).
+## Статус 2026-05-18 / visible run progress
+
+Зроблено:
+- [x] Запуск повного аналізу з Telegram тепер викликає cron endpoint у background-режимі й перевіряє, що endpoint прийняв запуск.
+- [x] Chunked pipeline зменшено до 1 ринку за invocation, щоб не впиратися у Vercel timeout.
+- [x] Self-trigger між chunks теж іде через background endpoint, щоб ланцюг не обривався мовчки.
+- [x] Після кожного обробленого ринку бот постить progress-повідомлення у командний чат.

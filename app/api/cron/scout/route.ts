@@ -1,3 +1,4 @@
+import { waitUntil } from "@vercel/functions";
 import { NextResponse, type NextRequest } from "next/server";
 import { getCronEnv } from "@/lib/config";
 import { runScoutPipeline } from "@/lib/scout/pipeline";
@@ -16,7 +17,19 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   const marketId = request.nextUrl.searchParams.get("market") ?? undefined;
+  const background = request.nextUrl.searchParams.get("background") === "1";
   const selfTriggerUrl = `${request.nextUrl.origin}/api/cron/scout`;
+
+  if (background) {
+    waitUntil(
+      runScoutPipeline(selfTriggerUrl, marketId).catch((error: unknown) => {
+        console.error("Background scout pipeline failed", error);
+      })
+    );
+
+    return NextResponse.json({ ok: true, accepted: true, marketId: marketId ?? null });
+  }
+
   const summary = await runScoutPipeline(selfTriggerUrl, marketId);
 
   return NextResponse.json({ ok: true, summary });

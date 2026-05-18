@@ -223,7 +223,14 @@ async function handleCallback(telegram: TelegramClient, callbackQuery: TelegramC
         reply_markup: { inline_keyboard: [[{ text: "🏠 Головне меню", callback_data: "menu_main" }]] }
       }
     );
-    void triggerPipeline();
+    try {
+      await triggerPipeline();
+    } catch (error) {
+      await telegram.sendMessage(
+        message.chat.id,
+        `Не смог запустить cron endpoint: ${error instanceof Error ? error.message : "Unknown error"}`
+      );
+    }
     return;
   }
 
@@ -279,7 +286,14 @@ async function handleRunCommand(telegram: TelegramClient, chatId: number): Promi
     ].join("\n"),
     { parse_mode: "MarkdownV2" }
   );
-  void triggerPipeline();
+  try {
+    await triggerPipeline();
+  } catch (error) {
+    await telegram.sendMessage(
+      chatId,
+      `Не смог запустить cron endpoint: ${error instanceof Error ? error.message : "Unknown error"}`
+    );
+  }
 }
 
 async function runMarketCommand(
@@ -355,13 +369,16 @@ function triggerPipeline(): Promise<void> {
   const vercelUrl = process.env.VERCEL_URL;
   const baseUrl = siteUrl ?? (vercelUrl ? `https://${vercelUrl}` : "http://localhost:3000");
 
-  return fetch(`${baseUrl}/api/cron/scout`, {
+  return fetch(`${baseUrl}/api/cron/scout?background=1`, {
     method: "GET",
     headers: { "x-cron-secret": CRON_SECRET }
   })
-    .then(() => undefined)
-    .catch((error: unknown) => {
-      console.error("Pipeline trigger failed", error);
+    .then(async (response) => {
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+      }
+
+      return undefined;
     });
 }
 
